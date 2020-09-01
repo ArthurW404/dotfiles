@@ -1,13 +1,15 @@
 #!/bin/sh
 # script for setting up configuration files 
+for file in .*rc
+do
+    echo "execute: ln -s `pwd`/$file ~/$file [y/n]"
+    read inp
 
-echo "execute: ln -s `pwd`/.vimrc ~/.vimrc [y/n]"
-read inp
-
-if test $inp = "y"
-then
-    ln -s `pwd`/.vimrc ~/.vimrc 
-fi
+    if test $inp = "y"
+    then
+        ln -s `pwd`/$file ~/$file 
+    fi
+done
 
 # check whether .config exists or not and create it if it does not
 if ! test -e ~/.config
