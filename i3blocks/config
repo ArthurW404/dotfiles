@@ -1,0 +1,21 @@
+[click]
+full_text=Click me!
+command=echo "Hello"
+color=#F79494
+
+[weather]
+label=⛅
+command=curl -Ss 'https://wttr.in?0&T&Q' | cut -c 16- | head -2 | xargs echo
+interval=3600
+color=#A4C2F4
+
+[date]
+command=date +"%a %d-%m-%Y"
+interval=1800
+color=#00FF00
+
+[time]
+command=date +"%T"
+interval=1
+color=#00FF00
+
