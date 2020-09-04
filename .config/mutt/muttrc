@@ -1,0 +1,26 @@
+# About Me
+set from = "ArthurWang2000@hotmail.com"
+set realname = "Arthur Wang"
+
+# My credentials
+set smtp_url = "smtp://ArthurWang2000@hotmail.com@smtp.office365.com:587/"
+set imap_user = "ArthurWang2000@hotmail.com"
+
+# decrypt password stored in .mutt/password and use it here
+source "gpg -d ~/.mutt/passwords.gpg |"
+
+# My mailboxes
+set folder = "imaps://outlook.office365.com:993"
+set spoolfile = "+INBOX"
+
+# Where to put the stuff
+set header_cache = "~/.mutt/cache/headers"
+set message_cachedir = "~/.mutt/cache/bodies"
+set certificate_file = "~/.mutt/certificates"
+
+# Etc
+# set mail_check = 30
+# set move = no
+# set imap_keepalive = 900
+set sort = "reverse-date-received"
+set editor = "vim"
