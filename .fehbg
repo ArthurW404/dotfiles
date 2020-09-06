@@ -1,0 +1,15 @@
+#!/bin/sh
+
+image_folder="/home/arthur/Pictures/"
+
+while true
+do
+    # gets a random image from the image folder
+    randnum=`od -An -N2 -i /dev/random`
+    max=`ls $image_folder | wc -l`
+    max=`expr $max`
+    mod_num=$((1 + $randnum % $max))
+    selected_img=`ls $image_folder | head -$mod_num | tail -1`
+    feh --no-fehbg --bg-scale "${image_folder}${selected_img}"
+    sleep 60
+done
