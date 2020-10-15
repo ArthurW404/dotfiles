@@ -1,6 +1,6 @@
 #!/bin/sh
 
-image_folder="/home/arthur/Wallpapers/"
+image_folder="/home/$USER/dotfiles/Wallpapers/"
 
 while true
 do
