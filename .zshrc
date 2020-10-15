@@ -36,18 +36,18 @@ fi
 # make additional lines in shell prompt look like this
 PS2=" >>> "
 
+PS1='%F{green}%n%f@%F{magenta}%m%f %F{blue}%B%~%b%f %# '
+
+export PATH="$PATH:/usr/share:/home/arthur/.local/bin"
+
 if ! who am i | grep tty > /dev/null
 then
     # case where this is a terminal emulator
     powerline-daemon -q
     . /usr/lib/python3.8/site-packages/powerline/bindings/zsh/powerline.zsh
-else 
-    # case where this is a tty terminal
-    PS1='%F{green}%n%f@%F{magenta}%m%f %F{blue}%B%~%b%f %# '
 fi
 
-export PATH="$PATH:/home/arthur/.local/bin"
 
 # Adding Fish-like syntax highlighting and autosuggestions
-source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+source  "`whereis zsh-syntax-highlighting | cut -d' ' -f2`/zsh-syntax-highlighting.zsh"
+source  "`whereis zsh-autosuggestions | cut -d' ' -f2`/zsh-autosuggestions.zsh"

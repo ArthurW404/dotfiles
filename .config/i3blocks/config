@@ -3,6 +3,13 @@
 #command=echo "Hello"
 #color=#F79494
 
+[battery]
+command=acpi -b 
+label=⚡
+color=#FFFF00
+instance=0
+interval=30
+
 [weather]
 # TODO remove this absolute path
 command=/home/art/dotfiles/.config/i3blocks/blocks/i3weather.sh
