@@ -4,7 +4,7 @@
 #color=#F79494
 
 [battery]
-command=acpi -b 
+command=acpi -b | cut -d' ' -f3-6 | sed 's/,//g'
 label=⚡
 color=#FFFF00
 instance=0
@@ -12,7 +12,7 @@ interval=30
 
 [weather]
 # TODO remove this absolute path
-command=/home/art/dotfiles/.config/i3blocks/blocks/i3weather.sh
+command=/home/arthur/dotfiles/.config/i3blocks/blocks/i3weather.sh
 interval=3600
 color=#A4C2F4
 
