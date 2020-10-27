@@ -1,7 +1,11 @@
+# my zshrc config
+
+export PATH="$PATH:/usr/share:/home/arthur/.local/bin"
+
 # Lines configured by zsh-newuser-install
 HISTFILE=~/.histfile
-HISTSIZE=1000
-SAVEHIST=1000
+HISTSIZE=5000
+SAVEHIST=5000
 
 # End of lines configured by zsh-newuser-install
 # The following lines were added by compinstall
@@ -38,7 +42,6 @@ PS2=" >>> "
 
 PS1='%F{green}%n%f@%F{magenta}%m%f %F{blue}%B%~%b%f %# '
 
-export PATH="$PATH:/usr/share:/home/arthur/.local/bin"
 
 if ! who am i | grep tty > /dev/null
 then
@@ -49,5 +52,14 @@ fi
 
 
 # Adding Fish-like syntax highlighting and autosuggestions
-source  "`whereis zsh-syntax-highlighting | cut -d' ' -f2`/zsh-syntax-highlighting.zsh"
-source  "`whereis zsh-autosuggestions | cut -d' ' -f2`/zsh-autosuggestions.zsh"
+
+if cat /etc/*-release | grep -q "Arch Linux" 
+then
+    ## arch linux
+    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
+    source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
+else if  cat /etc/*-release | grep -q "Debian"
+    ## debian
+    source  "`whereis zsh-syntax-highlighting | cut -d' ' -f2`/zsh-syntax-highlighting.zsh"
+    source  "`whereis zsh-autosuggestions | cut -d' ' -f2`/zsh-autosuggestions.zsh"
+fi
