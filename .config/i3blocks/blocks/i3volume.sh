@@ -1,9 +1,9 @@
 
 if amixer get Master | grep "Mono:" | grep '\[on\]' > /dev/null
 then
-    echo -n 🔊
+    echo -n 
 else
-    echo -n 🔇
+    echo -n 
 fi
 
 volume=`amixer get Master | grep "Mono:" | sed 's/%.*/%/g;s/.*\[//g'`
