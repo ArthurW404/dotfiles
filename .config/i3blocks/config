@@ -3,11 +3,11 @@
 #command=echo "Hello"
 #color=#F79494
 
-[volumne]
-command=amixer get Master | grep "Mono:" | sed 's/%.*/%/g;s/.*\[//g'
-label=v:
+[volume]
+command=/home/$USER/dotfiles/.config/i3blocks/blocks/i3volume.sh
 interval=once
 signal=10
+color=#F79494
 
 [battery]
 command=acpi -b | cut -d' ' -f3-6 | sed 's/,//g'
@@ -18,7 +18,7 @@ interval=30
 
 [weather]
 # TODO remove this absolute path
-command=/home/arthur/dotfiles/.config/i3blocks/blocks/i3weather.sh
+command=/home/$USER/dotfiles/.config/i3blocks/blocks/i3weather.sh
 interval=3600
 color=#A4C2F4
 

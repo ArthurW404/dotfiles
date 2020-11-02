@@ -11,7 +11,7 @@ elif echo $curr_weather | egrep '^Cloudy' > /dev/null
 then
     echo -n ☁️
 else 
-    echo -n "?"
+    echo -n "w:"
 fi
 
 echo " $curr_weather"
