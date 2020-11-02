@@ -3,6 +3,12 @@
 #command=echo "Hello"
 #color=#F79494
 
+[volumne]
+command=amixer get Master | grep "Mono:" | sed 's/%.*/%/g;s/.*\[//g'
+label=v:
+interval=once
+signal=10
+
 [battery]
 command=acpi -b | cut -d' ' -f3-6 | sed 's/,//g'
 label=⚡
@@ -25,4 +31,3 @@ color=#00FF00
 command=date +"%T"
 interval=1
 color=#00FF00
-
