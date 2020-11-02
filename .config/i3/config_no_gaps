@@ -4,16 +4,14 @@
 # Should you change your keyboard layout some time, delete
 # this file and re-run i3-config-wizard(1).
 #
+
 # i3 config file (v4)
 #
 # Please see https://i3wm.org/docs/userguide.html for a complete reference!
 
-# gaps
-
-gaps inner 14
-
-# Activate smart borders (always)
-smart_borders on
+# thesea are things which needs to be executed at startup 
+exec xcompmgr &
+exec --no-startup-id /home/art/.fehbg
 
 # my prefs:
 default_border normal 2
@@ -36,6 +34,7 @@ font pango:monospace 10
 # This font is widely installed, provides lots of unicode glyphs, right-to-left
 # text rendering and scalability on retina/hidpi displays (thanks to pango).
 #font pango:DejaVu Sans Mono 8
+
 # The combination of xss-lock, nm-applet and pactl is a popular choice, so
 # they are included here as an example. Modify as you see fit.
 
@@ -49,10 +48,10 @@ exec --no-startup-id nm-applet
 
 # Use pactl to adjust volume in PulseAudio.
 set $refresh_i3status killall -SIGUSR1 i3status
-bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +5%
-bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -5%
-bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle
-bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle
+bindsym XF86AudioRaiseVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ +10% && $refresh_i3status
+bindsym XF86AudioLowerVolume exec --no-startup-id pactl set-sink-volume @DEFAULT_SINK@ -10% && $refresh_i3status
+bindsym XF86AudioMute exec --no-startup-id pactl set-sink-mute @DEFAULT_SINK@ toggle && $refresh_i3status
+bindsym XF86AudioMicMute exec --no-startup-id pactl set-source-mute @DEFAULT_SOURCE@ toggle && $refresh_i3status
 
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
@@ -60,21 +59,15 @@ floating_modifier $mod
 # start a terminal
 bindsym $mod+Return exec st
 
-# start web browser
-bindsym $mod+w exec firefox
-
-# start vscode
-bindsym $mod+c exec code
-
 # kill focused window
 bindsym $mod+Shift+q kill
 
 # start dmenu (a program launcher)
-bindsym $mod+p exec dmenu_run
+bindsym $mod+d exec dmenu_run
 # There also is the (new) i3-dmenu-desktop which only displays applications
 # shipping a .desktop file. It is a wrapper around dmenu, so you need that
 # installed.
-# bindsym $mod+p exec --no-startup-id i3-dmenu-desktop
+# bindsym $mod+d exec --no-startup-id i3-dmenu-desktop
 
 # change focus
 bindsym $mod+h focus left
@@ -111,7 +104,7 @@ bindsym $mod+f fullscreen toggle
 
 # change container layout (stacked, tabbed, toggle split)
 bindsym $mod+s layout stacking
-bindsym $mod+t layout tabbed
+bindsym $mod+w layout tabbed
 bindsym $mod+e layout toggle split
 
 # toggle tiling / floating
