@@ -8,10 +8,11 @@
 #
 # Please see https://i3wm.org/docs/userguide.html for a complete reference!
 
-# varoables for default applications
+# variables for default applications
 set $browser firefox
 set $term st
 set $mp st ncmpcpp
+
 
 # gaps
 
@@ -216,10 +217,12 @@ bindsym $mod+r mode "resize"
 bar {
         status_command i3blocks
         position top
+        font pango:DejaVu Sans Mono, FontAwesome 10
         colors {
                 background #001924
                 statusline #ffffff
                 separator #666666
+
 
                 focused_workspace  #4c7899 #285577 #ffffff
                 active_workspace   #333333 #5f676a #ffffff
