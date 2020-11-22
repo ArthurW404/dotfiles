@@ -5,7 +5,8 @@ image_folder="/home/$USER/dotfiles/Wallpapers/"
 while true
 do
     # gets a random image from the image folder
-    randnum=`od -An -N2 -i /dev/random`
+    # randnum=`od -An -N2 -i /dev/random`
+    randnum=$RANDOM
     max=`ls $image_folder | wc -l`
     max=`expr $max`
     mod_num=$((1 + $randnum % $max))
