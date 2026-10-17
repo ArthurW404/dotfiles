@@ -25,8 +25,9 @@ Works natively on Linux (`apt` on Debian/Ubuntu, `pacman` on Arch, `dnf` on Fedo
     - [`shell-style`](./agents/skills/shell-style/SKILL.md) — Google Shell Style Guide (`set -euo pipefail`, defensive quoting, when to switch to Python).
     - [`code-review`](./agents/skills/code-review/SKILL.md) — Pre-commit engineering & security review checklist.
     - [`dotfiles-sync`](./agents/skills/dotfiles-sync/SKILL.md) — Workflow for maintaining and syncing this repository.
-- **Linux X11 Desktop ([`linux/`](./linux/))**:
-  - Legacy Linux/X11 configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), automatically linked on Linux (or skipped via `--no-x11`).
+- **Linux X11 Desktop ([`linux/`](./linux/)) & Legacy ([`legacy/`](./legacy/))**:
+  - `linux/` — Linux/X11 configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), automatically linked on Linux (or skipped via `--no-x11`).
+  - `legacy/` — Archived configurations for Emacs (`legacy/emacs/init.el`) and Mutt (`legacy/mutt/muttrc`), ready to be restored whenever needed.
 
 ## Setup
 

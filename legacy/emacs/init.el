@@ -1,4 +1,6 @@
-
+;; Legacy Emacs configuration
+;; To reactivate in the future, link this file to ~/.emacs.d/init.el:
+;;   mkdir -p ~/.emacs.d && ln -sfn "$HOME/Projects/dotfiles/legacy/emacs/init.el" "$HOME/.emacs.d/init.el"
 
 ;; Don't show the splash screen
 (setq inhibit-startup-message t)  ; Comment at end of line!
