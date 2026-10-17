@@ -24,6 +24,7 @@ Thumbs.db
 .env.*.local
 *.pem
 *.key
+.gitconfig.local
 
 # Language and compiler caches
 # Python

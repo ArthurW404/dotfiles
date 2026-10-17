@@ -50,7 +50,9 @@ else
     set -gx EDITOR vim
 end
 set -gx VISUAL "$EDITOR"
-set -gx RIPGREP_CONFIG_PATH "$HOME/.config/ripgrep/rc"
+if test -f "$HOME/.config/ripgrep/rc"
+    set -gx RIPGREP_CONFIG_PATH "$HOME/.config/ripgrep/rc"
+end
 
 # Interactive shell configuration only
 if status is-interactive

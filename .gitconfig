@@ -45,6 +45,6 @@
     last = log -1 HEAD --stat
     diffs = diff --staged
 
-# Machine-local overrides (user.name, user.email, GPG/SSH keys)
+# Machine-local overrides (user.name, user.email, GPG/SSH keys — untracked via global gitignore)
 [include]
-    path = ~/.gitconfig.local
+    path = ~/Projects/dotfiles/.gitconfig.local

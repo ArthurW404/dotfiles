@@ -10,9 +10,13 @@ description: >-
 
 ## Repository Layout
 - `agents/AGENTS.md`: Shared global instructions linked to Antigravity (`~/.gemini/GEMINI.md`, `~/.gemini/config/AGENTS.md`) and Claude (`~/.claude/CLAUDE.md`).
-- `agents/skills/<skill-name>/SKILL.md`: Universal skills registered in Antigravity (`~/.gemini/config/skills.json`) and symlinked for Claude (`~/.claude/skills`).
+- `agents/skills/<skill-name>/SKILL.md`: Universal skills registered in Antigravity (`~/.gemini/config/skills.json`) and symlinked for Claude (`~/.claude/skills`):
+  - `git-workflow`, `cpp-style`, `python-style`, `python-uv`, `shell-style`, `code-review`, `dotfiles-sync`.
 - `.config/fish/config.fish`: Primary interactive and non-interactive `fish` shell configuration (Linux & macOS aware).
-- `.zshenv` & `.zshrc`: Cross-platform `zsh` environment (`PATH` for non-interactive agent subshells) and interactive config.
+- `.zshenv`, `.zshrc`, & `.bashrc`: Cross-platform non-interactive `PATH` setup and interactive shell configs.
+- `.gitconfig` & `.config/git/ignore`: Shared Git config (includes untracked `~/.gitconfig.local` for local identity) and global ignore file.
+- `.config/nvim/init.lua` & `.vimrc`: Modern Lua Neovim configuration and classic Vim configuration.
+- `.config/tmux/tmux.conf` & `.config/ripgrep/rc`: Ergonomic `tmux` and `ripgrep` configurations.
 - `linux/`: Linux/X11 desktop configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), auto-linked when `setup.sh` runs on Linux.
 
 ## Adding or Updating Configurations

@@ -66,4 +66,8 @@ elif [[ -d "$HOME/.config/Antigravity/bin" ]]; then
     path=("$HOME/.config/Antigravity/bin" $path)
 fi
 
+if [[ -f "$HOME/.config/ripgrep/rc" ]]; then
+    export RIPGREP_CONFIG_PATH="$HOME/.config/ripgrep/rc"
+fi
+
 export PATH

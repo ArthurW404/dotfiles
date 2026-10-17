@@ -1,17 +1,31 @@
 # dotfiles
 
-Cross-platform (**Linux & macOS**) dotfiles (`fish` primary shell, `zsh`/`bash` agent-ready environments) and Universal Agent Hub for **Google Antigravity** and **Claude Code**.
+Cross-platform (**Linux & macOS**) dotfiles (`fish` primary shell, `zsh`/`bash` agent-ready environments, `nvim`, `git`, `tmux`, `ripgrep`) and Universal Agent Hub for **Google Antigravity** and **Claude Code**.
 
 Works natively on Linux (`apt` on Debian/Ubuntu, `pacman` on Arch, `dnf` on Fedora — no Homebrew/Linuxbrew required) and on macOS (Homebrew).
 
 ## Structure
 
-- [`.config/fish/config.fish`](./.config/fish/config.fish) — Primary `fish` shell configuration (cross-platform `PATH` exports + OS-aware interactive aliases, including Debian/Ubuntu `fdfind`/`batcat` support).
-- [`.zshenv`](./.zshenv), [`.zshrc`](./.zshrc), & [`.bashrc`](./.bashrc) — Cross-platform non-interactive `PATH` setup (so agent subshells always find `~/.local/bin`, `~/.cargo/bin`, `pnpm`, `/snap/bin`, or macOS Homebrew) and guarded interactive configs.
-- [`agents/`](./agents/) — Universal Agent Hub:
+- **Shells**:
+  - [`.config/fish/config.fish`](./.config/fish/config.fish) — Primary `fish` shell configuration (`PATH` exports, Git/editor/`uv` abbreviations, `fzf`/`zoxide`/`starship`/`direnv`/`eza` integrations, and Debian/Ubuntu `fdfind`/`batcat` support).
+  - [`.zshenv`](./.zshenv), [`.zshrc`](./.zshrc), & [`.bashrc`](./.bashrc) — Cross-platform non-interactive `PATH` setup (so agent subshells always find `~/.local/bin`, `~/.cargo/bin`, `pnpm`, `/snap/bin`, or macOS Homebrew) and guarded interactive configs.
+- **Editor & Developer CLI Tools**:
+  - [`.config/nvim/init.lua`](./.config/nvim/init.lua) & [`.vimrc`](./.vimrc) — Modern Lua Neovim configuration (with `lazy.nvim`, Treesitter, Telescope, and LSP for `clangd`, `pyright`, `ruff`, `lua_ls`) plus classic Vim config.
+  - [`.gitconfig`](./.gitconfig) & [`.config/git/ignore`](./.config/git/ignore) — Shared Git ergonomics (histogram diff, `zdiff3`, rebase-by-default, aliases, global ignore) with machine-local identity isolated in untracked `~/.gitconfig.local`.
+  - [`.config/tmux/tmux.conf`](./.config/tmux/tmux.conf) — Ergonomic `tmux` setup (truecolor, mouse support, 1-indexed windows/panes, `vi` keys).
+  - [`.config/ripgrep/rc`](./.config/ripgrep/rc) — Default `ripgrep` options (`--smart-case`, `--hidden`, `--glob=!.git/*`).
+- **Universal Agent Hub ([`agents/`](./agents/))**:
   - [`agents/AGENTS.md`](./agents/AGENTS.md) — Shared baseline rules linked to `~/.gemini/GEMINI.md`, `~/.gemini/config/AGENTS.md`, and `~/.claude/CLAUDE.md`.
-  - [`agents/skills/`](./agents/skills/) — Shared `SKILL.md` skills registered in `~/.gemini/config/skills.json` and symlinked to `~/.claude/skills`.
-- [`linux/`](./linux/) — Linux/X11 desktop configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), automatically linked on Linux (or skipped via `--no-x11`).
+  - [`agents/skills/`](./agents/skills/) — Shared `SKILL.md` skills registered in `~/.gemini/config/skills.json` and symlinked to `~/.claude/skills`:
+    - [`git-workflow`](./agents/skills/git-workflow/SKILL.md) — Branching, atomic commits, Chris Beams' 7 rules, rebase hygiene, and `git bisect`.
+    - [`cpp-style`](./agents/skills/cpp-style/SKILL.md) — Google C++ Style Guide & C++ Core Guidelines (RAII, smart pointers, `string_view`/`span`, IWYU).
+    - [`python-style`](./agents/skills/python-style/SKILL.md) — Google Python Style Guide & PEP 8 (strict 3.10+ typing, dataclasses, `pathlib`, docstrings, `ruff`/`pytest`).
+    - [`python-uv`](./agents/skills/python-uv/SKILL.md) — `uv` project, dependency, and PEP 723 script workflows.
+    - [`shell-style`](./agents/skills/shell-style/SKILL.md) — Google Shell Style Guide (`set -euo pipefail`, defensive quoting, when to switch to Python).
+    - [`code-review`](./agents/skills/code-review/SKILL.md) — Pre-commit engineering & security review checklist.
+    - [`dotfiles-sync`](./agents/skills/dotfiles-sync/SKILL.md) — Workflow for maintaining and syncing this repository.
+- **Linux X11 Desktop ([`linux/`](./linux/))**:
+  - Legacy Linux/X11 configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), automatically linked on Linux (or skipped via `--no-x11`).
 
 ## Setup
 
@@ -27,7 +41,7 @@ Apply symlinks idempotently (existing non-symlink files are automatically backed
 ./setup.sh
 ```
 
-Optionally bootstrap core CLI packages (`fish`, `ripgrep`, `fd` / `fd-find`, `jq`, `uv`) using your native OS package manager (`apt-get`, `pacman`, `dnf` on Linux, or `brew` on macOS):
+Optionally bootstrap core CLI packages (`fish`, `neovim`, `tmux`, `ripgrep`, `fd` / `fd-find`, `jq`, `uv`, `fzf`, `zoxide`) using your native OS package manager (`apt-get`, `pacman`, `dnf` on Linux, or `brew` on macOS):
 
 ```sh
 ./setup.sh --packages

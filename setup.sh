@@ -151,13 +151,13 @@ link_item "$DOTFILES_DIR/.config/nvim"             "$HOME/.config/nvim"
 link_item "$DOTFILES_DIR/.config/tmux/tmux.conf"   "$HOME/.config/tmux/tmux.conf"
 link_item "$DOTFILES_DIR/.config/ripgrep/rc"       "$HOME/.config/ripgrep/rc"
 
-# Preserve local git identity if an unlinked ~/.gitconfig exists
-if [[ -f "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" && ! -f "$HOME/.gitconfig.local" ]]; then
+# Preserve local git identity in untracked $DOTFILES_DIR/.gitconfig.local if an unlinked ~/.gitconfig exists
+if [[ -f "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" && ! -f "$DOTFILES_DIR/.gitconfig.local" ]]; then
     if [[ "$DRY_RUN" == true ]]; then
-        echo "[dry-run] Would copy existing ~/.gitconfig to ~/.gitconfig.local"
+        echo "[dry-run] Would copy existing ~/.gitconfig to $DOTFILES_DIR/.gitconfig.local"
     else
-        cp "$HOME/.gitconfig" "$HOME/.gitconfig.local"
-        echo "[init] Copied existing ~/.gitconfig -> ~/.gitconfig.local"
+        cp "$HOME/.gitconfig" "$DOTFILES_DIR/.gitconfig.local"
+        echo "[init] Copied existing ~/.gitconfig -> $DOTFILES_DIR/.gitconfig.local"
     fi
 fi
 

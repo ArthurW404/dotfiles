@@ -104,9 +104,14 @@ map("n", "<C-j>", "<C-w>j", { desc = "Navigate down window" })
 map("n", "<C-k>", "<C-w>k", { desc = "Navigate up window" })
 map("n", "<C-l>", "<C-w>l", { desc = "Navigate right window" })
 
--- Diagnostics navigation
-map("n", "[d", vim.diagnostic.goto_prev, { desc = "Previous diagnostic" })
-map("n", "]d", vim.diagnostic.goto_next, { desc = "Next diagnostic" })
+-- Diagnostics navigation (Neovim 0.10+ vim.diagnostic.jump with 0.9 fallback)
+if vim.diagnostic.jump then
+    map("n", "[d", function() vim.diagnostic.jump({ count = -1, float = true }) end, { desc = "Previous diagnostic" })
+    map("n", "]d", function() vim.diagnostic.jump({ count = 1, float = true }) end, { desc = "Next diagnostic" })
+else
+    map("n", "[d", vim.diagnostic.goto_prev, { desc = "Previous diagnostic" })
+    map("n", "]d", vim.diagnostic.goto_next, { desc = "Next diagnostic" })
+end
 map("n", "<leader>e", vim.diagnostic.open_float, { desc = "Line diagnostics" })
 map("n", "<leader>q", vim.diagnostic.setloclist, { desc = "Quickfix diagnostics" })
 
@@ -118,10 +123,11 @@ map("n", "<leader>bd", "<cmd>bdelete<CR>", { desc = "Close buffer" })
 --------------------------------------------------------------------------------
 -- 5. Package Manager Bootstrap (lazy.nvim)
 --------------------------------------------------------------------------------
+local uv = vim.uv or vim.loop
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 local has_git = vim.fn.executable("git") == 1
 
-if has_git and not vim.loop.fs_stat(lazypath) then
+if has_git and not uv.fs_stat(lazypath) then
     vim.fn.system({
         "git",
         "clone",
@@ -132,7 +138,7 @@ if has_git and not vim.loop.fs_stat(lazypath) then
     })
 end
 
-if vim.loop.fs_stat(lazypath) then
+if uv.fs_stat(lazypath) then
     vim.opt.rtp:prepend(lazypath)
 
     local status_ok, lazy = pcall(require, "lazy")
@@ -211,9 +217,6 @@ if vim.loop.fs_stat(lazypath) then
                         })
                     end
 
-                    local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
-                    if not lspconfig_ok then return end
-
                     -- Common LSP keymaps when language server attaches
                     vim.api.nvim_create_autocmd("LspAttach", {
                         group = augroup,
@@ -229,18 +232,36 @@ if vim.loop.fs_stat(lazypath) then
                         end,
                     })
 
-                    -- Default server configurations
-                    pcall(lspconfig.clangd.setup, {})
-                    pcall(lspconfig.pyright.setup, {})
-                    pcall(lspconfig.ruff.setup, {})
-                    pcall(lspconfig.lua_ls.setup, {
-                        settings = {
-                            Lua = {
-                                diagnostics = { globals = { "vim" } },
-                                workspace = { checkThirdParty = false },
+                    -- Default server configurations (Neovim 0.11+ vim.lsp.config/enable with 0.9/0.10 lspconfig fallback)
+                    local servers = {
+                        clangd = {},
+                        pyright = {},
+                        ruff = {},
+                        lua_ls = {
+                            settings = {
+                                Lua = {
+                                    diagnostics = { globals = { "vim" } },
+                                    workspace = { checkThirdParty = false },
+                                },
                             },
                         },
-                    })
+                    }
+
+                    if vim.lsp.config and vim.lsp.enable then
+                        for server, cfg in pairs(servers) do
+                            vim.lsp.config(server, cfg)
+                            vim.lsp.enable(server)
+                        end
+                    else
+                        local lspconfig_ok, lspconfig = pcall(require, "lspconfig")
+                        if lspconfig_ok then
+                            for server, cfg in pairs(servers) do
+                                if lspconfig[server] then
+                                    pcall(lspconfig[server].setup, cfg)
+                                end
+                            end
+                        end
+                    end
                 end,
             },
         }, {
