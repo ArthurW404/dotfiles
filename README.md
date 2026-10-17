@@ -6,13 +6,14 @@ Works natively on Linux (`apt` on Debian/Ubuntu, `pacman` on Arch, `dnf` on Fedo
 
 ## Structure
 
-- **Shells**:
-  - [`.config/fish/config.fish`](./.config/fish/config.fish) — Primary `fish` shell configuration (`PATH` exports, Git/editor/`uv` abbreviations, `fzf`/`zoxide`/`starship`/`direnv`/`eza` integrations, and Debian/Ubuntu `fdfind`/`batcat` support).
+- **Shells & Prompt**:
+  - [`.config/fish/config.fish`](./.config/fish/config.fish) — Primary `fish` shell configuration (`PATH` exports, Catppuccin Mocha syntax theme, Git/editor/`uv` abbreviations, `fzf`/`zoxide`/`starship`/`direnv`/`eza` integrations, and Debian/Ubuntu `fdfind`/`batcat` support).
+  - [`.config/starship.toml`](./.config/starship.toml) — Sleek, minimalist cross-shell prompt (uses universal Unicode symbols with no patched font required).
   - [`.zshenv`](./.zshenv), [`.zshrc`](./.zshrc), & [`.bashrc`](./.bashrc) — Cross-platform non-interactive `PATH` setup (so agent subshells always find `~/.local/bin`, `~/.cargo/bin`, `pnpm`, `/snap/bin`, or macOS Homebrew) and guarded interactive configs.
 - **Editor & Developer CLI Tools**:
   - [`.config/nvim/init.lua`](./.config/nvim/init.lua) & [`.vimrc`](./.vimrc) — Modern Lua Neovim configuration (with `lazy.nvim`, Treesitter, Telescope, and LSP for `clangd`, `pyright`, `ruff`, `lua_ls`) plus classic Vim config.
-  - [`.gitconfig`](./.gitconfig) & [`.config/git/ignore`](./.config/git/ignore) — Shared Git ergonomics (histogram diff, `zdiff3`, rebase-by-default, aliases, global ignore) with machine-local identity isolated in untracked `~/.gitconfig.local`.
-  - [`.config/tmux/tmux.conf`](./.config/tmux/tmux.conf) — Ergonomic `tmux` setup (truecolor, mouse support, 1-indexed windows/panes, `vi` keys).
+  - [`.gitconfig`](./.gitconfig) & [`.config/git/ignore`](./.config/git/ignore) — Shared Git ergonomics (Delta syntax-highlighted pager with automatic `less` fallback, histogram diff, `zdiff3`, rebase-by-default, aliases, global ignore) with machine-local identity isolated in untracked `.gitconfig.local`.
+  - [`.config/tmux/tmux.conf`](./.config/tmux/tmux.conf) — Ergonomic `tmux` setup (truecolor, Catppuccin Mocha status bar, mouse support, 1-indexed windows/panes, `vi` keys).
   - [`.config/ripgrep/rc`](./.config/ripgrep/rc) — Default `ripgrep` options (`--smart-case`, `--hidden`, `--glob=!.git/*`).
 - **Universal Agent Hub ([`agents/`](./agents/))**:
   - [`agents/AGENTS.md`](./agents/AGENTS.md) — Shared baseline rules linked to `~/.gemini/GEMINI.md`, `~/.gemini/config/AGENTS.md`, and `~/.claude/CLAUDE.md`.

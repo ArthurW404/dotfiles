@@ -65,7 +65,9 @@ case "$TERM" in
     xterm-color|*-256color) color_prompt=yes;;
 esac
 
-if [ "$color_prompt" = yes ]; then
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init bash)"
+elif [ "$color_prompt" = yes ]; then
     PS1='${debian_chroot:+($debian_chroot)}$?\[\033[01;32m\][\u@\h]\[\033[00m\]\[\033[01;34m\]\W\[\033[00m\]\$ '
 else
     PS1='${debian_chroot:+($debian_chroot)}$?[\u@\h]\W\$ '
@@ -95,6 +97,14 @@ if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
 fi
 if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then
     alias bat='batcat'
+fi
+
+if command -v nvim >/dev/null 2>&1; then
+    alias vim='nvim'
+    alias vi='nvim'
+    alias v='nvim'
+else
+    alias v='vim'
 fi
 
 alias ll='ls -lah'

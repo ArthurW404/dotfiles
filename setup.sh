@@ -49,7 +49,7 @@ install_system_packages() {
     echo "=== Installing Core CLI Packages ($OS_NAME) ==="
     if [[ "$OS_NAME" == "Darwin" ]]; then
         if command -v brew >/dev/null 2>&1; then
-            local cmd="brew install fish neovim tmux ripgrep fd jq uv fzf zoxide"
+            local cmd="brew install fish neovim tmux ripgrep fd jq uv fzf zoxide git-delta starship eza"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run: $cmd"
             else
@@ -60,22 +60,22 @@ install_system_packages() {
         fi
     elif [[ "$OS_NAME" == "Linux" ]]; then
         if command -v apt-get >/dev/null 2>&1; then
-            local cmd="sudo apt-get update && sudo apt-get install -y fish zsh vim neovim tmux git curl ripgrep fd-find jq fzf zoxide zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo apt-get update && sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Debian/Ubuntu apt): $cmd"
             else
                 sudo apt-get update
-                sudo apt-get install -y fish zsh vim neovim tmux git curl ripgrep fd-find jq fzf zoxide zsh-autosuggestions zsh-syntax-highlighting
+                sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza zsh-autosuggestions zsh-syntax-highlighting
             fi
         elif command -v pacman >/dev/null 2>&1; then
-            local cmd="sudo pacman -S --needed --noconfirm fish zsh vim neovim tmux git curl ripgrep fd jq uv fzf zoxide zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo pacman -S --needed --noconfirm fish zsh vim neovim tmux git git-delta curl ripgrep fd jq uv fzf zoxide eza starship zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Arch pacman): $cmd"
             else
                 $cmd
             fi
         elif command -v dnf >/dev/null 2>&1; then
-            local cmd="sudo dnf install -y fish zsh vim neovim tmux git curl ripgrep fd-find jq fzf zoxide zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo dnf install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza starship zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Fedora dnf): $cmd"
             else
@@ -91,6 +91,16 @@ install_system_packages() {
                 echo "[dry-run] Would install uv to ~/.local/bin via https://astral.sh/uv/install.sh"
             else
                 curl -LsSf https://astral.sh/uv/install.sh | sh
+            fi
+        fi
+
+        # Install starship on Linux via standalone installer if not already present
+        if ! command -v starship >/dev/null 2>&1; then
+            if [[ "$DRY_RUN" == true ]]; then
+                echo "[dry-run] Would install starship to ~/.local/bin via https://starship.rs/install.sh"
+            else
+                mkdir -p "$HOME/.local/bin"
+                curl -sS https://starship.rs/install.sh | sh -s -- -y -b "$HOME/.local/bin"
             fi
         fi
     fi
@@ -150,6 +160,7 @@ link_item "$DOTFILES_DIR/.vimrc"                   "$HOME/.vimrc"
 link_item "$DOTFILES_DIR/.config/nvim"             "$HOME/.config/nvim"
 link_item "$DOTFILES_DIR/.config/tmux/tmux.conf"   "$HOME/.config/tmux/tmux.conf"
 link_item "$DOTFILES_DIR/.config/ripgrep/rc"       "$HOME/.config/ripgrep/rc"
+link_item "$DOTFILES_DIR/.config/starship.toml"    "$HOME/.config/starship.toml"
 
 # Preserve local git identity in untracked $DOTFILES_DIR/.gitconfig.local if an unlinked ~/.gitconfig exists
 if [[ -f "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" && ! -f "$DOTFILES_DIR/.gitconfig.local" ]]; then

@@ -69,9 +69,12 @@ if status is-interactive
     abbr -a gcb git checkout -b
     abbr -a gl 'git log --oneline --graph --decorate -n 20'
 
-    # Editor
+    # Editor (alias vim/vi -> nvim when installed)
+    if command -sq nvim
+        alias vim='nvim'
+        alias vi='nvim'
+    end
     abbr -a v "$EDITOR"
-    abbr -a vi "$EDITOR"
 
     # Python / uv
     abbr -a uvr uv run
@@ -135,27 +138,47 @@ if status is-interactive
         direnv hook fish | source
     end
 
-    # Starship prompt or clean built-in prompt fallback
+    # Modern Catppuccin Mocha color palette
+    set -g fish_color_normal cdd6f4
+    set -g fish_color_command 89b4fa
+    set -g fish_color_param cdd6f4
+    set -g fish_color_keyword cba6f7
+    set -g fish_color_quote a6e3a1
+    set -g fish_color_redirection f5c2e7
+    set -g fish_color_end fab387
+    set -g fish_color_error f38ba8
+    set -g fish_color_comment 6c7086
+    set -g fish_color_selection --background=45475a
+    set -g fish_color_search_match --background=45475a
+    set -g fish_color_operator 94e2d5
+    set -g fish_color_escape f5e0dc
+    set -g fish_color_autosuggestion 585b70
+    set -g fish_pager_color_progress 6c7086
+    set -g fish_pager_color_prefix f5c2e7
+    set -g fish_pager_color_completion cdd6f4
+    set -g fish_pager_color_description 6c7086
+    set -g fish_pager_color_selected_background --background=45475a
+
+    # Starship prompt or sleek built-in prompt fallback
     if command -sq starship
         starship init fish | source
     else
         function fish_prompt
             set -l last_status $status
-            set -l stat_color (set_color green)
+            set -l stat_color (set_color a6e3a1)
             if test $last_status -ne 0
-                set stat_color (set_color red)
+                set stat_color (set_color f38ba8)
             end
 
-            set -l user_color (set_color cyan)
-            set -l host_color (set_color magenta)
-            set -l cwd_color (set_color blue --bold)
+            set -l user_color (set_color 89dceb)
+            set -l host_color (set_color cba6f7)
+            set -l cwd_color (set_color 89b4fa --bold)
+            set -l git_color (set_color fab387)
             set -l normal (set_color normal)
 
-            echo -n -s $user_color $USER $normal "@" $host_color (prompt_hostname) " " $cwd_color (prompt_pwd) $normal
-            if type -q fish_git_prompt
-                echo -n -s (fish_git_prompt)
-            end
-            echo -n -s " " $stat_color "❯" $normal " "
+            echo ""
+            echo -s $user_color $USER $normal "@" $host_color (prompt_hostname) " " $cwd_color (prompt_pwd) $normal (type -q fish_git_prompt; and fish_git_prompt)
+            echo -n -s $stat_color "❯ " $normal
         end
     end
 end

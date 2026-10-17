@@ -35,6 +35,14 @@ if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then
     alias bat='batcat'
 fi
 
+if command -v nvim >/dev/null 2>&1; then
+    alias vim='nvim'
+    alias vi='nvim'
+    alias v='nvim'
+else
+    alias v='vim'
+fi
+
 alias ll='ls -lah'
 alias grep='grep --color=auto'
 alias fgrep='fgrep --color=auto'
@@ -63,6 +71,11 @@ for plugin_dir in /opt/homebrew/share /usr/local/share /usr/share/zsh/plugins /u
     fi
 done
 unset plugin_dir
+
+# Load Starship prompt if installed
+if command -v starship >/dev/null 2>&1; then
+    eval "$(starship init zsh)"
+fi
 
 # Load NVM in interactive sessions if installed
 export NVM_DIR="$HOME/.nvm"

@@ -43,6 +43,7 @@ opt.cursorline = true
 opt.showmode = false
 opt.updatetime = 250
 opt.timeoutlen = 300
+opt.fillchars = { eob = " ", fold = " ", diff = "╱" }
 
 -- Files, Buffers & Undo
 opt.hidden = true

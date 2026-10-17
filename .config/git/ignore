@@ -17,6 +17,7 @@ Thumbs.db
 .vscode/
 *.sublime-project
 *.sublime-workspace
+lazy-lock.json
 
 # Secrets, local environment & credentials
 .env
