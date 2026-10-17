@@ -43,3 +43,4 @@ To keep context lean, detailed language standards and workflows live in modular 
 - **Building Model Context Protocol (MCP) servers**: `~/.claude/skills/mcp-builder/SKILL.md`
 - **Frontend & canvas design patterns**: `~/.claude/skills/frontend-design/SKILL.md` / `~/.claude/skills/canvas-design/SKILL.md`
 - **Document generation & extraction (PDF, DOCX, PPTX, XLSX)**: `~/.claude/skills/pdf/SKILL.md`, `~/.claude/skills/docx/SKILL.md`, `~/.claude/skills/xlsx/SKILL.md`
+- **Web research, API documentation lookup & search hierarchy**: `~/.claude/skills/web-research/SKILL.md`
