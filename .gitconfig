@@ -1,0 +1,66 @@
+# ~/.gitconfig
+# Shared Git configuration across Linux and macOS
+# Machine-local identity (user.name, user.email, signing keys) lives in untracked .gitconfig.local
+
+[init]
+    defaultBranch = main
+
+[core]
+    excludesfile = ~/.config/git/ignore
+    autocrlf = input
+    pager = "sh -c 'command -v delta >/dev/null 2>&1 && exec delta \"$@\" || exec less -FRX \"$@\"' --"
+
+[interactive]
+    diffFilter = "sh -c 'command -v delta >/dev/null 2>&1 && exec delta --color-only \"$@\" || exec cat \"$@\"' --"
+
+[delta]
+    navigate = true
+    line-numbers = true
+    side-by-side = false
+    syntax-theme = Catppuccin Mocha
+    hyperlinks = true
+    file-style = bold yellow
+    file-decoration-style = bold yellow ul
+    hunk-header-style = file line-number bold italic
+    hunk-header-decoration-style = none
+
+[pull]
+    rebase = true
+
+[rebase]
+    autoStash = true
+    autoSquash = true
+
+[fetch]
+    prune = true
+    prunetags = true
+
+[push]
+    autoSetupRemote = true
+    default = current
+
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[diff]
+    algorithm = histogram
+    colorMoved = default
+
+[merge]
+    conflictstyle = zdiff3
+
+[alias]
+    st = status -sb
+    co = checkout
+    br = branch
+    lg = log --graph --pretty=format:'%C(auto)%h%d %s %C(dim white)(%cr) <%an>%Creset' -n 30
+    unstage = restore --staged
+    amend = commit --amend --no-edit
+    last = log -1 HEAD --stat
+    diffs = diff --staged
+
+# Machine-local overrides (user.name, user.email, GPG/SSH keys — untracked via global gitignore)
+[include]
+    path = ~/Projects/dotfiles/.gitconfig.local
+    path = ~/dotfiles/.gitconfig.local

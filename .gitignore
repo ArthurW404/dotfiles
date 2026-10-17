@@ -1,0 +1,17 @@
+# Repository gitignore for ~/Projects/dotfiles
+
+# Local git identity overrides (contains private email/keys)
+.gitconfig.local
+
+# Neovim plugin manager lockfile (optional, kept machine-independent)
+.config/nvim/lazy-lock.json
+
+# macOS metadata
+.DS_Store
+.DS_Store?
+._*
+
+# Editor swap files
+*.swp
+*.swo
+*~
