@@ -39,3 +39,7 @@ To keep context lean, detailed language standards and workflows live in modular 
 - **Shell scripting (Bash / POSIX sh / Fish)**: `~/.claude/skills/shell-style/SKILL.md`
 - **Pre-commit code review & security audit**: `~/.claude/skills/code-review/SKILL.md`
 - **Maintaining & syncing this dotfiles repository**: `~/.claude/skills/dotfiles-sync/SKILL.md`
+- **Authoring, evaluating & benchmarking new agent skills**: `~/.claude/skills/skill-creator/SKILL.md`
+- **Building Model Context Protocol (MCP) servers**: `~/.claude/skills/mcp-builder/SKILL.md`
+- **Frontend & canvas design patterns**: `~/.claude/skills/frontend-design/SKILL.md` / `~/.claude/skills/canvas-design/SKILL.md`
+- **Document generation & extraction (PDF, DOCX, PPTX, XLSX)**: `~/.claude/skills/pdf/SKILL.md`, `~/.claude/skills/docx/SKILL.md`, `~/.claude/skills/xlsx/SKILL.md`

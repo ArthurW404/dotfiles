@@ -2,6 +2,9 @@
   "entries": [
     {
       "path": "~/Projects/dotfiles/agents/skills"
+    },
+    {
+      "path": "~/Projects/dotfiles/external/anthropics-skills/skills"
     }
   ]
 }

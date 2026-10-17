@@ -184,8 +184,32 @@ if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then
     link_item "$(command -v batcat)" "$HOME/.local/bin/bat"
 fi
 
+# Initialize git submodules if inside dotfiles git repo
+if [[ -d "$DOTFILES_DIR/.git" && -f "$DOTFILES_DIR/.gitmodules" ]]; then
+    echo ""
+    echo "=== Initializing Git Submodules ==="
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would run: git submodule update --init --recursive"
+    else
+        git -C "$DOTFILES_DIR" submodule update --init --recursive
+    fi
+fi
+
 echo ""
 echo "=== Linking Universal Agent Hub (Antigravity & Claude) ==="
+# Ensure any external skills from submodules are symlinked into agents/skills/
+if [[ -d "$DOTFILES_DIR/external/anthropics-skills/skills" ]]; then
+    mkdir -p "$DOTFILES_DIR/agents/skills"
+    for skill_dir in "$DOTFILES_DIR"/external/anthropics-skills/skills/*; do
+        if [[ -d "$skill_dir" ]]; then
+            skill_name="$(basename "$skill_dir")"
+            if [[ ! -e "$DOTFILES_DIR/agents/skills/$skill_name" && ! -L "$DOTFILES_DIR/agents/skills/$skill_name" ]]; then
+                link_item "../../external/anthropics-skills/skills/$skill_name" "$DOTFILES_DIR/agents/skills/$skill_name"
+            fi
+        fi
+    done
+fi
+
 # Antigravity global rules & skills manifest
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/GEMINI.md"
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/config/AGENTS.md"
