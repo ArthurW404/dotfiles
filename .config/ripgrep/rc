@@ -1,0 +1,14 @@
+# ~/.config/ripgrep/rc
+# Default ripgrep runtime arguments (RIPGREP_CONFIG_PATH)
+
+# Search case-insensitively if pattern is all lowercase, case-sensitively otherwise
+--smart-case
+
+# Include hidden files and directories in search
+--hidden
+
+# Exclude .git directory from results
+--glob=!.git/*
+
+# Sort results by path for predictable output
+--sort=path

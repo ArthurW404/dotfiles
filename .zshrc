@@ -1,63 +1,70 @@
-# my zshrc config
+# ~/.zshrc
+# Sourced only for interactive zsh shells. Environment/PATH exports live in ~/.zshenv.
 
-# Lines configured by zsh-newuser-install
-HISTFILE=~/.histfile
-HISTSIZE=5000
-SAVEHIST=5000
+[[ -o interactive ]] || return
 
-# End of lines configured by zsh-newuser-install
-# The following lines were added by compinstall
-zstyle :compinstall filename '/home/${USER}/.zshrc'
+# History configuration
+HISTFILE="$HOME/.histfile"
+HISTSIZE=10000
+SAVEHIST=10000
+setopt HIST_IGNORE_DUPS
+setopt SHARE_HISTORY
 
+# Completion system
+zstyle :compinstall filename "$HOME/.zshrc"
 autoload -Uz compinit
-compinit
-# End of lines added by compinstall
-
-# Adding autocompletion with an arrow-key driven interface 
+compinit -C
 zstyle ':completion:*' menu select
 
-# set a fancy prompt (non-color, unless we know we "want" color)
-case "$TERM" in
-    xterm-color|*-256color) color_prompt=yes;;
-esac
-
-# enable color support of ls and also add handy aliases
-if [ -x /usr/bin/dircolors ]; then
+# Color support across macOS (BSD ls) and Linux (GNU coreutils)
+if [[ "$OSTYPE" == darwin* ]]; then
+    export CLICOLOR=1
+    alias ls='ls -G'
+elif [[ -x /usr/bin/dircolors ]]; then
     test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
     alias ls='ls --color=auto'
     alias dir='dir --color=auto'
     alias vdir='vdir --color=auto'
-
-    alias grep='grep --color=auto'
-    alias fgrep='fgrep --color=auto'
-    alias egrep='egrep --color=auto'
 fi
 
-alias ll='ls -al'
+# Debian/Ubuntu apt binary name compatibility (fdfind -> fd, batcat -> bat)
+if ! command -v fd >/dev/null 2>&1 && command -v fdfind >/dev/null 2>&1; then
+    alias fd='fdfind'
+fi
+if ! command -v bat >/dev/null 2>&1 && command -v batcat >/dev/null 2>&1; then
+    alias bat='batcat'
+fi
 
-# make additional lines in shell prompt look like this
+alias ll='ls -lah'
+alias grep='grep --color=auto'
+alias fgrep='fgrep --color=auto'
+alias egrep='egrep --color=auto'
+
+# Prompt configuration
 PS2=" >>> "
-
 PS1='%F{green}%n%f@%F{magenta}%m%f %F{blue}%B%~%b%f %# '
 
-# Adding Fish-like syntax highlighting and autosuggestions
-if cat /etc/*-release 2> /dev/null  | grep -q "Arch Linux" 2> /dev/null
-then
-    ## arch linux
-    source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh
-    source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh
-else if  cat /etc/*-release 2> /dev/null | grep -q "Debian" 2> /dev/null
-    ## debian
-    source  "`whereis zsh-syntax-highlighting | cut -d' ' -f2`/zsh-syntax-highlighting.zsh"
-    source  "`whereis zsh-autosuggestions | cut -d' ' -f2`/zsh-autosuggestions.zsh"
-fi
-
-# Enable control left and right to go between words
-bindkey "^[[1;5D" backward-word 
+# Keybindings (Control+Left / Control+Right for word navigation)
+bindkey "^[[1;5D" backward-word
 bindkey "^[[1;5C" forward-word
 
-# Get environment variables from .zprofile
-. $HOME/.zprofile
+# Optional zsh plugins across Debian/Ubuntu apt (/usr/share), Arch (/usr/share/zsh/plugins), and macOS Homebrew (/opt/homebrew/share)
+for plugin_dir in /opt/homebrew/share /usr/local/share /usr/share/zsh/plugins /usr/share; do
+    if [[ -f "$plugin_dir/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" ]]; then
+        source "$plugin_dir/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh"
+        break
+    fi
+done
+
+for plugin_dir in /opt/homebrew/share /usr/local/share /usr/share/zsh/plugins /usr/share; do
+    if [[ -f "$plugin_dir/zsh-autosuggestions/zsh-autosuggestions.zsh" ]]; then
+        source "$plugin_dir/zsh-autosuggestions/zsh-autosuggestions.zsh"
+        break
+    fi
+done
+unset plugin_dir
+
+# Load NVM in interactive sessions if installed
 export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-[ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+[[ -s "$NVM_DIR/nvm.sh" ]] && \. "$NVM_DIR/nvm.sh"
+[[ -s "$NVM_DIR/bash_completion" ]] && \. "$NVM_DIR/bash_completion"

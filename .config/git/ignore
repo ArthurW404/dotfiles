@@ -1,0 +1,48 @@
+# Global gitignore (~/.config/git/ignore)
+
+# Operating system files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Editor & IDE artifacts
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Secrets, local environment & credentials
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Language and compiler caches
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+env/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# C / C++
+.cache/clangd/
+compile_commands.json
+
+# Node
+node_modules/
+
+# Agent local artifacts
+.claude/

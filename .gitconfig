@@ -1,0 +1,50 @@
+# ~/.gitconfig
+# Shared Git configuration across Linux and macOS
+# Machine-local identity (user.name, user.email, signing keys) lives in untracked ~/.gitconfig.local
+
+[init]
+    defaultBranch = main
+
+[core]
+    excludesfile = ~/.config/git/ignore
+    autocrlf = input
+
+[pull]
+    rebase = true
+
+[rebase]
+    autoStash = true
+    autoSquash = true
+
+[fetch]
+    prune = true
+    prunetags = true
+
+[push]
+    autoSetupRemote = true
+    default = current
+
+[rerere]
+    enabled = true
+    autoupdate = true
+
+[diff]
+    algorithm = histogram
+    colorMoved = default
+
+[merge]
+    conflictstyle = zdiff3
+
+[alias]
+    st = status -sb
+    co = checkout
+    br = branch
+    lg = log --graph --pretty=format:'%C(auto)%h%d %s %C(dim white)(%cr) <%an>%Creset' -n 30
+    unstage = restore --staged
+    amend = commit --amend --no-edit
+    last = log -1 HEAD --stat
+    diffs = diff --staged
+
+# Machine-local overrides (user.name, user.email, GPG/SSH keys)
+[include]
+    path = ~/.gitconfig.local
