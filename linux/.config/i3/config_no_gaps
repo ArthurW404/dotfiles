@@ -11,7 +11,7 @@
 
 # thesea are things which needs to be executed at startup 
 exec xcompmgr &
-exec --no-startup-id /home/art/.fehbg
+exec --no-startup-id ~/.fehbg
 
 # my prefs:
 default_border normal 2
