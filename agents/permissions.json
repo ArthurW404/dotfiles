@@ -117,7 +117,11 @@
     "read_url(schemastore.azurewebsites.net)",
     "read_url(stackoverflow.com)",
     "read_url(warehouse.pypa.io)",
-    "read_url(wiki.archlinux.org)"
+    "read_url(wiki.archlinux.org)",
+    "mcp(discord/discord_list_channels)",
+    "mcp(discord/discord_list_guilds)",
+    "mcp(discord/discord_read_messages)",
+    "mcp(discord/discord_send_message)"
   ],
   "deny": [
     "command(git push --force)",
