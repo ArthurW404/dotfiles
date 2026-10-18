@@ -27,6 +27,9 @@ Works natively on Linux (`apt` on Debian/Ubuntu, `pacman` on Arch, `dnf` on Fedo
     - [`dotfiles-sync`](./agents/skills/dotfiles-sync/SKILL.md) — Workflow for maintaining and syncing this repository.
     - [`web-research`](./agents/skills/web-research/SKILL.md) — Online technical research, query optimization, source authority hierarchy, and whitelisted domains.
     - **Anthropic Skills Catalog** ([`external/anthropics-skills`](https://github.com/anthropics/skills)) — Git submodule providing 19 official agent skills (including `skill-creator`, `mcp-builder`, `frontend-design`, `webapp-testing`, `pdf`, `docx`, `pptx`, `xlsx`), automatically linked into `agents/skills/`.
+  - [`agents/hooks/`](./agents/hooks/) — PreToolUse safety lifecycle hooks (`safety_guard.py`) gating destructive git operations, force pushes, and recursive rm across Antigravity and Claude Code.
+  - [`agents/subagents/`](./agents/subagents/) — Shared specialized subagent definitions (`code-reviewer`, `test-runner`, `security-auditor`) linked to `~/.claude/agents` and `.agents/subagents`.
+  - [`agents/permissions.json`](./agents/permissions.json) — Curated baseline tool and URL allowlists automatically synced into Antigravity (`config.json`) and Claude Code (`settings.json`).
 - **Linux X11 Desktop ([`linux/`](./linux/)) & Legacy ([`legacy/`](./legacy/))**:
   - `linux/` — Linux/X11 configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), automatically linked on Linux (or skipped via `--no-x11`).
   - `legacy/` — Archived configurations for Emacs (`legacy/emacs/init.el`) and Mutt (`legacy/mutt/muttrc`), ready to be restored whenever needed.

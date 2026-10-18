@@ -49,7 +49,7 @@ install_system_packages() {
     echo "=== Installing Core CLI Packages ($OS_NAME) ==="
     if [[ "$OS_NAME" == "Darwin" ]]; then
         if command -v brew >/dev/null 2>&1; then
-            local cmd="brew install fish neovim tmux ripgrep fd jq uv fzf zoxide git-delta starship eza"
+            local cmd="brew install fish neovim tmux ripgrep fd jq uv fzf zoxide git-delta starship eza gh"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run: $cmd"
             else
@@ -60,22 +60,22 @@ install_system_packages() {
         fi
     elif [[ "$OS_NAME" == "Linux" ]]; then
         if command -v apt-get >/dev/null 2>&1; then
-            local cmd="sudo apt-get update && sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo apt-get update && sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza gh zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Debian/Ubuntu apt): $cmd"
             else
                 sudo apt-get update
-                sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza zsh-autosuggestions zsh-syntax-highlighting
+                sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza gh zsh-autosuggestions zsh-syntax-highlighting
             fi
         elif command -v pacman >/dev/null 2>&1; then
-            local cmd="sudo pacman -S --needed --noconfirm fish zsh vim neovim tmux git git-delta curl ripgrep fd jq uv fzf zoxide eza starship zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo pacman -S --needed --noconfirm fish zsh vim neovim tmux git git-delta curl ripgrep fd jq uv fzf zoxide eza starship github-cli zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Arch pacman): $cmd"
             else
                 $cmd
             fi
         elif command -v dnf >/dev/null 2>&1; then
-            local cmd="sudo dnf install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza starship zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo dnf install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza starship gh zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Fedora dnf): $cmd"
             else
@@ -113,7 +113,12 @@ link_item() {
     local parent_dir
     parent_dir="$(dirname "$dst")"
 
-    if [[ ! -e "$src" ]]; then
+    local check_src="$src"
+    if [[ "$src" != /* ]]; then
+        check_src="$parent_dir/$src"
+    fi
+
+    if [[ ! -e "$check_src" ]]; then
         echo "[skip] Source does not exist: $src"
         return 0
     fi
@@ -210,14 +215,29 @@ if [[ -d "$DOTFILES_DIR/external/anthropics-skills/skills" ]]; then
     done
 fi
 
-# Antigravity global rules & skills manifest
+# Antigravity global rules, skills, hooks & project links
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/GEMINI.md"
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/config/AGENTS.md"
 link_item "$DOTFILES_DIR/agents/skills.json"       "$HOME/.gemini/config/skills.json"
+link_item "$DOTFILES_DIR/agents/hooks.json"        "$HOME/.gemini/config/hooks.json"
+link_item "../agents/hooks.json"                   "$DOTFILES_DIR/.agents/hooks.json"
 
-# Claude Code global instructions & skills directory
+# Claude Code global instructions, skills & subagents
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.claude/CLAUDE.md"
 link_item "$DOTFILES_DIR/agents/skills"            "$HOME/.claude/skills"
+link_item "$DOTFILES_DIR/agents/subagents"         "$HOME/.claude/agents"
+link_item "../agents/subagents"                    "$DOTFILES_DIR/.agents/subagents"
+
+# Sync baseline permissions & safety hooks into Antigravity & Claude Code
+if [[ -f "$DOTFILES_DIR/agents/hooks/sync_permissions.py" ]]; then
+    echo ""
+    echo "=== Syncing Agent Permissions & Safety Hooks ==="
+    if [[ "$DRY_RUN" == true ]]; then
+        python3 "$DOTFILES_DIR/agents/hooks/sync_permissions.py" --dry-run
+    else
+        python3 "$DOTFILES_DIR/agents/hooks/sync_permissions.py"
+    fi
+fi
 
 if [[ "$INSTALL_X11" == true ]]; then
     echo ""
