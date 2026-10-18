@@ -246,11 +246,12 @@ if [[ -d "$DOTFILES_DIR/external/google-skills/skills" ]]; then
     done
 fi
 
-# Antigravity global rules, skills, hooks & project links
+# Antigravity global rules, skills, hooks, MCP servers & project links
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/GEMINI.md"
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/config/AGENTS.md"
 link_item "$DOTFILES_DIR/agents/skills.json"       "$HOME/.gemini/config/skills.json"
 link_item "$DOTFILES_DIR/agents/hooks.json"        "$HOME/.gemini/config/hooks.json"
+link_item "$DOTFILES_DIR/agents/mcp_config.json"   "$HOME/.gemini/config/mcp_config.json"
 link_item "../agents/hooks.json"                   "$DOTFILES_DIR/.agents/hooks.json"
 
 # Claude Code global instructions, skills & subagents
