@@ -44,53 +44,80 @@ def evaluate_command(command: str) -> tuple[str, str]:
     if not cmd:
         return "allow", "Empty command"
 
-    # 1. Block commits directly on main or master
-    if re.search(r"\bgit\s+commit\b", cmd):
-        branch = get_current_git_branch()
-        if branch in ("main", "master"):
+    # Git command inspection
+    git_match = re.match(r"^git\s+([a-zA-Z0-9_-]+)", cmd)
+    if git_match:
+        git_subcmd = git_match.group(1)
+
+        # 1. Block commits directly on main or master
+        if git_subcmd == "commit":
+            branch = get_current_git_branch()
+            if branch in ("main", "master"):
+                return (
+                    "deny",
+                    f"Direct commits to '{branch}' are prohibited by global agent rules. "
+                    "Always create a descriptive feature branch (feat/..., fix/...) first.",
+                )
+            return "allow", "Safe git commit on feature branch"
+
+        # 2. Block force pushing and direct pushes to main/master
+        if git_subcmd == "push":
+            if re.search(r"\s(--force|-f)(\s|$)", cmd) and "--force-with-lease" not in cmd:
+                return (
+                    "deny",
+                    "Destructive 'git push --force' is strictly prohibited. "
+                    "Use standard push or negotiate with the user.",
+                )
+            if "--force-with-lease" in cmd:
+                return (
+                    "force_ask",
+                    "'git push --force-with-lease' rewrites remote history. User confirmation required.",
+                )
+            # Block pushing to main or master directly
+            if re.search(r"\b(origin\s+)?(main|master)(\s|$)", cmd):
+                return (
+                    "deny",
+                    "Direct push to 'main'/'master' is prohibited by global agent rules. "
+                    "Push feature branches and merge via pull request.",
+                )
+            branch = get_current_git_branch()
+            if branch in ("main", "master") and ":" not in cmd:
+                return (
+                    "deny",
+                    f"Direct push while on '{branch}' branch is prohibited. "
+                    "Always work and push on descriptive feature branches.",
+                )
+            return "allow", "Safe git push on feature branch"
+
+        # 3. Block destructive git reset / clean
+        if git_subcmd == "reset" and re.search(r"\s--hard\b", cmd):
             return (
                 "deny",
-                f"Direct commits to '{branch}' are prohibited by global agent rules. "
-                "Always create a descriptive feature branch (feat/..., fix/...) first.",
+                "'git reset --hard' destroys uncommitted changes. "
+                "Use 'git stash' or targeted checkout instead.",
             )
 
-    # 2. Block force pushing
-    # Allow --force-with-lease under confirmation, but hard-deny raw -f or --force
-    if re.search(r"\bgit\s+push\b", cmd):
-        if re.search(r"\s(--force|-f)(\s|$)", cmd) and "--force-with-lease" not in cmd:
+        if git_subcmd == "clean" and re.search(r"\s-[a-zA-Z]*f", cmd):
             return (
                 "deny",
-                "Destructive 'git push --force' is strictly prohibited. "
-                "Use standard push or negotiate with the user.",
+                "'git clean -f' permanently deletes untracked files without recovery. "
+                "Inspect files manually before removal.",
             )
-        if "--force-with-lease" in cmd:
+
+        if git_subcmd in ("checkout", "restore") and (
+            re.search(r"\s(--\s+)?\.\s*$", cmd) or re.search(r"\s(--staged\s+)?\.\s*$", cmd)
+        ):
             return (
                 "force_ask",
-                "'git push --force-with-lease' rewrites remote history. User confirmation required.",
+                "Wholesale discard of all working tree changes. User confirmation required.",
             )
 
-    # 3. Block destructive git reset / clean
-    if re.search(r"\bgit\s+reset\s+--hard\b", cmd):
-        return (
-            "deny",
-            "'git reset --hard' destroys uncommitted changes. "
-            "Use 'git stash' or targeted checkout instead.",
-        )
+        # 4. Require confirmation for branch deletion or history rebase/merge
+        if git_subcmd == "branch" and re.search(r"\s-[a-zA-Z]*D\b", cmd):
+            return "force_ask", "Force deleting a git branch ('git branch -D'). User confirmation required."
 
-    if re.search(r"\bgit\s+clean\s+-[a-zA-Z]*f", cmd):
-        return (
-            "deny",
-            "'git clean -f' permanently deletes untracked files without recovery. "
-            "Inspect files manually before removal.",
-        )
-
-    if re.search(r"\bgit\s+checkout\s+(--\s+)?\.\s*$", cmd) or re.search(
-        r"\bgit\s+restore\s+(--staged\s+)?\.\s*$", cmd
-    ):
-        return (
-            "force_ask",
-            "Wholesale discard of all working tree changes. User confirmation required.",
-        )
+        if git_subcmd in ("rebase", "merge"):
+            return "force_ask", "Branch rebase/merge rewrites branch topology. User confirmation required."
 
     # 4. Block destructive recursive deletions of critical paths
     rm_match = re.search(r"\brm\s+-[a-zA-Z]*[rR]", cmd)
