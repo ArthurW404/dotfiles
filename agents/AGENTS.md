@@ -45,6 +45,9 @@ To keep context lean, detailed language standards and workflows live in modular 
 - **Frontend & canvas design patterns**: `~/.claude/skills/frontend-design/SKILL.md` / `~/.claude/skills/canvas-design/SKILL.md`
 - **Document generation & extraction (PDF, DOCX, PPTX, XLSX)**: `~/.claude/skills/pdf/SKILL.md`, `~/.claude/skills/docx/SKILL.md`, `~/.claude/skills/xlsx/SKILL.md`
 - **Web research, API documentation lookup & search hierarchy**: `~/.claude/skills/web-research/SKILL.md`
+- **Google Cloud Platform & CLI guardrails**: `~/.claude/skills/gcloud/SKILL.md`
+- **Gemini API & Genkit Python agent development**: `~/.claude/skills/gemini-api/SKILL.md` / `~/.claude/skills/developing-genkit-python/SKILL.md`
+- **GCP architecture, Cloud Run & multi-agent solutions**: `~/.claude/skills/google-cloud-solution-build-deploy-agents/SKILL.md` / `~/.claude/skills/cloud-run-basics/SKILL.md`
 
 ## 6. Specialized Subagents
 When tasks require deep code review, extensive test execution, or security auditing, delegate to dedicated subagents (`agents/subagents/` or `invoke_subagent`):

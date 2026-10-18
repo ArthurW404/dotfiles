@@ -215,6 +215,37 @@ if [[ -d "$DOTFILES_DIR/external/anthropics-skills/skills" ]]; then
     done
 fi
 
+if [[ -d "$DOTFILES_DIR/external/google-skills/skills" ]]; then
+    mkdir -p "$DOTFILES_DIR/agents/skills"
+    google_curated=(
+        "cloud/gcloud"
+        "cloud/google-cloud-recipe-onboarding"
+        "cloud/google-cloud-recipe-auth"
+        "cloud/cloud-run-basics"
+        "cloud/cloud-sql-basics"
+        "cloud/cloud-build-basics"
+        "cloud/bigquery-basics"
+        "cloud/spanner-basics"
+        "cloud/google-cloud-storage-basics"
+        "cloud/gke-golden-path"
+        "cloud/gemini-api"
+        "cloud/gemini-live-api"
+        "cloud/gemini-agents-api"
+        "cloud/developing-genkit-python"
+        "cloud/google-cloud-solution-build-deploy-agents"
+        "cloud/google-cloud-solution-multi-agent-security"
+        "developers/retrieving-developer-knowledge"
+        "developers/finding-google-skills"
+        "identity/sign-in-with-google-web"
+    )
+    for entry in "${google_curated[@]}"; do
+        skill_name="$(basename "$entry")"
+        if [[ ! -e "$DOTFILES_DIR/agents/skills/$skill_name" && ! -L "$DOTFILES_DIR/agents/skills/$skill_name" ]]; then
+            link_item "../../external/google-skills/skills/$entry" "$DOTFILES_DIR/agents/skills/$skill_name"
+        fi
+    done
+fi
+
 # Antigravity global rules, skills, hooks & project links
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/GEMINI.md"
 link_item "$DOTFILES_DIR/agents/AGENTS.md"         "$HOME/.gemini/config/AGENTS.md"
