@@ -271,6 +271,18 @@ if [[ -f "$DOTFILES_DIR/agents/hooks/sync_permissions.py" ]]; then
     fi
 fi
 
+# Verify safety hooks unit tests pass
+if [[ -f "$DOTFILES_DIR/agents/hooks/safety_guard.py" ]]; then
+    echo ""
+    echo "=== Running Safety Guard Verification ==="
+    python3 "$DOTFILES_DIR/agents/hooks/safety_guard.py" --test
+fi
+
+# On macOS, clear gatekeeper provenance on dotfiles to prevent seatbelt sandbox restrictions
+if [[ "$OS_NAME" == "Darwin" ]] && command -v xattr >/dev/null 2>&1; then
+    xattr -dr com.apple.provenance "$DOTFILES_DIR" 2>/dev/null || true
+fi
+
 if [[ "$INSTALL_X11" == true ]]; then
     echo ""
     echo "=== Linking Linux / X11 Configurations ==="

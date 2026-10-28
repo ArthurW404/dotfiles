@@ -80,7 +80,58 @@ Before running `git commit`:
   git push --force-with-lease origin <branch-name>
   ```
 
-## 6. Debugging with `git bisect`
+## 6. PR Sizing & Slicing Playbook
+Small pull requests dramatically accelerate review cycles, improve bug detection, and minimize merge conflicts.
+
+### The Diff Budget:
+- **Target Size**: **< 200 lines of functional diff** across **≤ 3–5 files** (excluding snapshots and generated code). Review time: **< 10 minutes**.
+- **Warning Threshold**: **> 300 lines**. The agent must stop and recommend splitting into sequential PR slices before proceeding.
+- **Hard Ceiling**: **> 500 lines**. Prohibited unless a purely mechanical refactor or automated file rename.
+
+### The 4-Slice Decomposition Pattern:
+When implementing any multi-step feature or architectural refactor, slice horizontally or vertically into independent PRs:
+
+| Slice | Focus | Target Diff | Review Burden |
+|---|---|---|---|
+| **Slice 1: Foundation** | Protocols, domain models, types, and type-conformance tests | ~80–150 lines | 3–5 mins |
+| **Slice 2: Core Logic** | Pure algorithm/engine implementation + isolated unit tests | ~150–250 lines | 5–10 mins |
+| **Slice 3: Integration** | Adapters, broker/API providers, persistence, or data pipelines | ~150–250 lines | 5–10 mins |
+| **Slice 4: Presentation** | UI wiring (Streamlit/React), CLI commands, or user endpoints | ~100–200 lines | 5 mins |
+
+### Milestone Planning:
+Implementation plans (`implementation_plan.md`) must structure deliverables into these explicit PR milestones. Never start Slice 2 until Slice 1 is code-reviewed and approved.
+
+## 7. Structured PR Review Artifact (`pr<N>_review.md`)
+Before requesting user review or merging a PR, generate a structured markdown artifact (`pr<N>_review.md`) following this schema:
+
+```markdown
+# PR #<N> Review: `<branch-name>` → `main`
+
+**Status:** Ready for review / merge. All tests passing.
+**Diff Stats:** `+<additions> / -<deletions> lines across <files> files`
+**PR Link:** [Repo#N](https://github.com/owner/repo/pull/N)
+
+---
+
+## 🟢 Resolved in this Cycle
+| Issue / Feature | Resolution |
+|---|---|
+| **#1 Short Title** | Clear description of what was changed and where it is tested. |
+
+---
+
+## 📋 Decisions for User Consideration
+1. **Trade-off or Optional Path**:
+   - Explanation of alternatives, trade-offs, and recommended path.
+
+---
+
+## 🧪 Verification
+- Test command and results (e.g. `uv run pytest: 42/42 passed in 0.8s`).
+- Linters and typechecks (e.g. `ruff check: 100% clean`).
+```
+
+## 8. Debugging with `git bisect`
 When hunting for a regression:
 ```sh
 git bisect start
