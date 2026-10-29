@@ -30,8 +30,16 @@ Use this checklist to perform rigorous self-review and peer code review before f
 - [ ] **Minimal Diffs**: Does the diff touch only what is necessary for the task? No unrelated formatting churn.
 - [ ] **Readability**: Is the logic straightforward and readable without clever obfuscation?
 - [ ] **No Dead Code**: Are unused imports, temporary print/debug statements, and commented-out code blocks deleted?
+- [ ] **Zero Fake Backwards-Compatibility**: Are there deprecated aliases, compatibility shims, or dead legacy paths that should be cleanly pruned instead?
+- [ ] **Interface Segregation**: Does any class implement dummy methods, `pass`, or `NotImplementedError` just to satisfy an oversized protocol? If so, split the protocol.
+- [ ] **Complexity Limits**: Are files under ~300 lines and methods under ~40 lines? Decompose monolithic functions into focused private helpers.
 
 ## 5. Verification & Tests
 - [ ] **Automated Tests**: Are there tests covering both the happy path and critical failure cases?
 - [ ] **Linters & Formatters**: Did relevant linters pass (`ruff`, `clang-tidy`, `shellcheck`) with zero warnings?
 - [ ] **Clean Git Status**: Run `git status -sb` and `git diff --staged` to confirm only intended files are committed.
+
+## 6. PR Sizing & Diff Budget Audit
+Audit branch size against `origin/main` (`git diff origin/main...HEAD --shortstat`):
+- [ ] **Under Budget**: Is the diff `< 200 lines` across `≤ 3–5 files`?
+- [ ] **Split Triggers (>300 lines)**: If the change exceeds 300 lines, flag a `DIFF BUDGET WARNING` and recommend logical split boundaries (e.g. Protocol & Tests -> Engine -> UI) before submitting for review.
