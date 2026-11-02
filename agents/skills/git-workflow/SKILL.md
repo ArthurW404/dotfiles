@@ -12,6 +12,11 @@ Follow these engineering standards whenever branching, staging, committing, or p
 
 ## 1. Branch Safety & Lifecycle
 - **Never commit or push directly to `main` or `master`.**
+- **Session Start & Prerequisite Check**:
+  Before starting work in a new session or creating a feature branch:
+  1. Always run `git fetch origin`.
+  2. Verify base branch freshness against latest `origin/main` (or `origin/master`).
+  3. If your work depends on another unmerged branch or PR, explicitly verify whether to base your branch on that feature branch (stacked PR) or wait for it to merge, avoiding building on stale code.
 - Always create a descriptive feature or fix branch from up-to-date main:
   ```sh
   git checkout main
@@ -101,6 +106,13 @@ When implementing any multi-step feature or architectural refactor, slice horizo
 ### Milestone Planning:
 Implementation plans (`implementation_plan.md`) must structure deliverables into these explicit PR milestones. Never start Slice 2 until Slice 1 is code-reviewed and approved.
 
+### Execution-Ready Milestone Plans (Two-Tier Model Handoff):
+When an implementation plan is drafted for execution by faster or subagent models (e.g. Gemini Flash, Haiku):
+- **Exact File Paths & Interfaces**: State exact file paths, class/function names, and typed parameter signatures.
+- **Explicit Negative Constraints**: State clearly what NOT to build, files NOT to create (e.g. "Do NOT create new JSON cache files", "Do NOT commit sqlite files").
+- **Target Libraries**: Explicitly name standard domain libraries to use instead of hand-rolling custom math.
+- **Single Verification Command**: State the exact command to test and lint (`uv run pytest tests/test_foo.py && uv run ruff check`).
+
 ## 7. Structured PR Review Artifact (`pr<N>_review.md`)
 Before requesting user review or merging a PR, generate a structured markdown artifact (`pr<N>_review.md`) following this schema:
 
@@ -131,7 +143,26 @@ Before requesting user review or merging a PR, generate a structured markdown ar
 - Linters and typechecks (e.g. `ruff check: 100% clean`).
 ```
 
-## 8. Debugging with `git bisect`
+## 8. Session Handoff Digest (`handoff.md`)
+When transferring work between sessions, agents, or models, produce a standardized `handoff.md` artifact:
+
+```markdown
+# Session Handoff: `<branch-name>`
+
+- **Active Branch**: `feat/...` (based on commit `abc1234`)
+- **Upstream PR**: [Repo#N](https://github.com/owner/repo/pull/N) (or unpushed)
+- **Completed**:
+  - `path/to/file.py`: Implemented X and verified with Y.
+- **Pending Tasks**:
+  - [ ] Implement Z in `path/to/other.py`
+  - [ ] Run test suite: `uv run pytest tests/test_...`
+- **Known Blockers / Notes**:
+  - Note any required environment variables or prerequisite PR dependencies.
+- **Resume Prompt**:
+  > "Continue implementing Slice 2 from `implementation_plan.md`: focus on `path/to/other.py`..."
+```
+
+## 9. Debugging with `git bisect`
 When hunting for a regression:
 ```sh
 git bisect start
