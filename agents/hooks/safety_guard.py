@@ -33,6 +33,39 @@ def get_current_git_branch() -> str | None:
     return None
 
 
+# `git push` options that consume the following token as their value.
+PUSH_VALUE_FLAGS = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+
+
+def push_refspecs(cmd: str) -> list[str]:
+    """Return the refspecs of a `git push` command (positionals after the remote)."""
+    positionals = []
+    tokens = iter(cmd.split()[2:])  # Skip "git push".
+    for token in tokens:
+        if token in ("&&", "||", ";", "|"):
+            break
+        if token in PUSH_VALUE_FLAGS:
+            next(tokens, None)
+        elif not token.startswith("-"):
+            positionals.append(token)
+    return [spec.lstrip("+") for spec in positionals[1:]]
+
+
+def pushes_to_protected(refspecs: list[str]) -> bool:
+    """Return True if any refspec's destination is main/master."""
+    dests = (spec.split(":")[-1].removeprefix("refs/heads/") for spec in refspecs)
+    return any(dest in ("main", "master") for dest in dests)
+
+
+def pushes_current_branch(refspecs: list[str]) -> bool:
+    """Return True if the push would update the checked-out branch.
+
+    True when no refspec is given (push.default applies) or a refspec
+    is HEAD/@ without an explicit destination.
+    """
+    return not refspecs or any(spec in ("HEAD", "@") for spec in refspecs)
+
+
 def evaluate_command(command: str) -> tuple[str, str]:
     """Evaluate command and return (decision, reason).
 
@@ -75,14 +108,15 @@ def evaluate_command(command: str) -> tuple[str, str]:
                     "'git push --force-with-lease' rewrites remote history. User confirmation required.",
                 )
             # Block pushing to main or master directly
-            if re.search(r"\b(origin\s+)?(main|master)(\s|$)", cmd):
+            refspecs = push_refspecs(cmd)
+            if pushes_to_protected(refspecs):
                 return (
                     "deny",
                     "Direct push to 'main'/'master' is prohibited by global agent rules. "
                     "Push feature branches and merge via pull request.",
                 )
             branch = get_current_git_branch()
-            if branch in ("main", "master") and ":" not in cmd:
+            if branch in ("main", "master") and pushes_current_branch(refspecs):
                 return (
                     "deny",
                     f"Direct push while on '{branch}' branch is prohibited. "
@@ -180,6 +214,10 @@ def run_tests() -> None:
     test_cases = [
         # (command, expected_decision, description)
         ("git push origin master", "deny", "Direct push to master"),
+        ("git push origin HEAD:master", "deny", "Push HEAD to master"),
+        ("git push origin +feat/x:refs/heads/main", "deny", "Push to refs/heads/main"),
+        ("git push origin :master", "deny", "Delete remote master"),
+        ("git push -u origin fix/push-on-master", "allow", "Branch name ending in master"),
         ("git push -f origin feat/test", "deny", "Force push"),
         ("git push --force origin feat/test", "deny", "Force push long flag"),
         ("git push -u origin feat/add-skills", "allow", "Safe feature branch push"),
@@ -197,18 +235,34 @@ def run_tests() -> None:
         ("git stash clear", "force_ask", "Clear git stash"),
         ("ls -la", "allow", "Safe ls command"),
     ]
+    # Cases evaluated while the checked-out branch is 'master'.
+    master_cases = [
+        ("git push -u origin feat/add-skills", "allow", "Named feature branch from master"),
+        ("git push origin HEAD:feat/x", "allow", "HEAD to explicit feature ref from master"),
+        ("git push", "deny", "Bare push on master"),
+        ("git push -u origin", "deny", "Push without refspec on master"),
+        ("git push origin HEAD", "deny", "Push HEAD on master"),
+        ("git push -o ci.skip origin", "deny", "Push option value is not a refspec"),
+        ("git push git@github.com:me/repo.git", "deny", "Colon in remote URL is not a refspec"),
+        ("git commit -m wip", "deny", "Commit on master"),
+    ]
+    from unittest import mock
+
+    cases = [(*case, "feat/test") for case in test_cases]
+    cases += [(*case, "master") for case in master_cases]
 
     passed = 0
-    for cmd, expected_decision, desc in test_cases:
-        decision, reason = evaluate_command(cmd)
+    for cmd, expected_decision, desc, branch in cases:
+        with mock.patch(f"{__name__}.get_current_git_branch", return_value=branch):
+            decision, reason = evaluate_command(cmd)
         if decision == expected_decision:
             passed += 1
             print(f"  [PASS] {desc}: '{cmd}' -> {decision}")
         else:
             print(f"  [FAIL] {desc}: '{cmd}' -> got {decision}, expected {expected_decision} ({reason})")
 
-    print(f"\nResults: {passed}/{len(test_cases)} tests passed.")
-    if passed != len(test_cases):
+    print(f"\nResults: {passed}/{len(cases)} tests passed.")
+    if passed != len(cases):
         sys.exit(1)
 
 
