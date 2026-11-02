@@ -14,6 +14,8 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 4. **Root-Cause Debugging**: When a build or test fails, identify the root cause first. Never silence linters (`# noqa`, `@ts-ignore`, `NOLINT`), weaken types (`any`), or disable failing tests just to make a check pass.
 5. **Dependency Discipline**: Prefer standard libraries and dependencies already in the project. Ask before adding any new third-party package.
 6. **Goal-Driven Verification**: Always verify changes by running relevant tests, linters, typechecks, or dry-runs before declaring a task complete.
+7. **Zero Unrequested Backwards-Compatibility**: In internal projects and feature branches, delete superseded code, obsolete helpers, and dead paths cleanly. Never introduce backwards-compatibility wrappers, deprecation shims, or alias layers unless explicitly requested.
+8. **Modular Complexity Limits**: Target `< 300` lines per file and `< 40` lines per function or method. Proactively propose decomposing files or methods approaching these limits before they turn into god objects.
 
 ## 3. Environment, OS & Tooling Preferences
 - **Supported Platforms**: Cross-platform Linux and macOS (`uname -s` / `$OSTYPE` aware).
@@ -26,8 +28,13 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 - **Search & CLI**: Prefer modern fast CLI tools (`rg` for search, `fd` / `fdfind` for file finding, `jq` for JSON, `gh` for GitHub).
 - **Command Shaping**: Always invoke target binaries directly (`git`, `uv`, `cargo`, `pnpm`, `gh`). Never chain commands with `&&`, `;`, or `||`, and avoid wrapping binaries in `eval`, `sudo`, `env`, or `$(...)` substitutions. Single direct invocations match prefix-based permission grants without manual approval prompts.
 
-## 4. Git Conventions & Safety
+## 4. Git Conventions, PR Sizing & Safety
 - **Branching**: **Never commit or push directly to `main` or `master`.** Always create a descriptive feature or fix branch (`feat/...`, `fix/...`, `refactor/...`, `chore/...`).
+- **Diff Sizing Budget**: Keep PRs small, high-signal, and effortless to review.
+  - **Target**: **< 200 lines** of functional diff across **≤ 3–5 files** (excluding pure test fixtures/data).
+  - **Warning Threshold**: **> 300 lines** — stop and split into logical sequential PR slices.
+  - **Hard Ceiling**: **> 500 lines** — strictly prohibited unless a mechanical file rename or automated code generation.
+- **Multi-PR Milestone Planning**: When drafting an implementation plan or tackling a non-trivial feature, always partition the work into a sequence of small, independently reviewable PR milestones (e.g. Slice 1: Protocol/Types -> Slice 2: Core Engine -> Slice 3: Integration -> Slice 4: UI/Wiring). Complete and review each slice before opening the next.
 - **Commits**: Keep commits focused and atomic (never mix formatting/refactoring with behavioral changes). Use imperative Conventional Commits.
 - **Safety Guard**: Active `PreToolUse` lifecycle hooks (`agents/hooks/safety_guard.py`) automatically block direct commits to `main`/`master`, force pushes (`git push --force`), destructive wipes (`git reset --hard`), and dangerous recursive deletions.
 

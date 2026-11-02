@@ -22,8 +22,10 @@ Analyze the current branch or staged git diff against the repository's coding st
    - Identify touched files and determine applicable language style guides (e.g., [`python-style`](file:///Users/arthur/Projects/dotfiles/agents/skills/python-style/SKILL.md), [`cpp-style`](file:///Users/arthur/Projects/dotfiles/agents/skills/cpp-style/SKILL.md), [`shell-style`](file:///Users/arthur/Projects/dotfiles/agents/skills/shell-style/SKILL.md)).
 
 2. **Check Against Code Review Checklist**:
+   - **PR Diff Sizing Budget**: Is the diff `< 200 lines` across `≤ 3–5 files`? If `> 300 lines`, flag `DIFF BUDGET WARNING` and specify where to split into sequential PR slices.
    - **Correctness & Edge Cases**: Are null/empty cases, error paths, and resource lifecycles handled?
    - **Surgical Diffs**: Are there any accidental formatting changes, drive-by renames, or unrelated edits?
+   - **Architectural Hygiene**: Are interfaces segregated (no dummy stubs)? Is there any unrequested backwards-compatibility shims? Are methods `< 40 lines`?
    - **Security**: Are there any command injection risks, unsanitized inputs, or hardcoded secrets?
    - **Verification**: Are there accompanying tests or dry-run verifications confirming this change works?
 
@@ -31,10 +33,14 @@ Analyze the current branch or staged git diff against the repository's coding st
    Deliver a concise Markdown report:
    ```markdown
    ### Code Review Summary: [PASS | ACTION REQUIRED]
+   - **Diff Stats**: `+X / -Y lines across N files` [Within Budget (<200 lines) | ⚠️ Diff Budget Exceeded (>300 lines)]
    - **Files Inspected**: `path/to/file`
    - **Critical Findings** (if any):
      - Line X: Bug/risk description + suggested fix
    - **Nitpicks / Non-blocking**:
      - Line Y: Optional readability improvement
-   - **Recommendation**: [Ready to Commit | Revise Before Commit]
+   - **Split Recommendation** (if >300 lines):
+     - Suggested Slice 1: ...
+     - Suggested Slice 2: ...
+   - **Recommendation**: [Ready to Commit | Revise Before Commit | Split into Smaller PRs]
    ```
