@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import re
+import shutil
 import subprocess
 import sys
 
@@ -237,6 +238,16 @@ def main() -> None:
         command = payload.get("command", "")
 
     decision, reason = evaluate_command(command)
+
+    if decision == "force_ask":
+        # Audible cue that the agent is blocked on user confirmation.
+        if shutil.which("afplay"):
+            subprocess.Popen(
+                ["afplay", "/System/Library/Sounds/Ping.aiff"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                start_new_session=True,
+            )
 
     if is_claude:
         # Claude Code output format
