@@ -12,5 +12,26 @@
         ]
       }
     ]
+  },
+  "sound-alerts": {
+    "Stop": [
+      {
+        "type": "command",
+        "command": "python3 ~/Projects/dotfiles/agents/hooks/notifier.py --event stop",
+        "timeout": 5
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "ask_question",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ~/Projects/dotfiles/agents/hooks/notifier.py --event prompt",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }
