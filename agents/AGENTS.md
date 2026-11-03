@@ -16,6 +16,8 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 6. **Goal-Driven Verification**: Always verify changes by running relevant tests, linters, typechecks, or dry-runs before declaring a task complete.
 7. **Zero Unrequested Backwards-Compatibility**: In internal projects and feature branches, delete superseded code, obsolete helpers, and dead paths cleanly. Never introduce backwards-compatibility wrappers, deprecation shims, or alias layers unless explicitly requested.
 8. **Modular Complexity Limits**: Target `< 300` lines per file and `< 40` lines per function or method. Proactively propose decomposing files or methods approaching these limits before they turn into god objects.
+9. **Domain Library Precedence**: Before hand-rolling non-trivial domain algorithms, mathematical routines, financial/quant calculations, or parsers, survey and propose established, battle-tested open-source libraries (e.g. `scipy`, `statsmodels`, `quantstats`, `riskfolio-lib`, `polars`) rather than implementing custom math from scratch.
+10. **Execution-Ready Two-Tier Planning**: When drafting an implementation plan (especially for handoff to faster/subagent models like Flash), ensure the plan is self-contained and leaves zero room for guesswork: specify exact target files, function signatures, negative constraints (what NOT to build/add), and the exact verification commands.
 
 ## 3. Environment, OS & Tooling Preferences
 - **Supported Platforms**: Cross-platform Linux and macOS (`uname -s` / `$OSTYPE` aware).

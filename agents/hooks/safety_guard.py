@@ -83,6 +83,15 @@ def evaluate_command(command: str) -> tuple[str, str]:
     if git_match:
         git_subcmd = git_match.group(1)
 
+        # 0. Block staging or committing database binaries
+        if git_subcmd in ("add", "commit") and re.search(
+            r"(\.sqlite|\.sqlite3|\.db|\.duckdb)\b", cmd
+        ):
+            return (
+                "deny",
+                "Staging or committing database binaries (*.db, *.sqlite*, *.duckdb) is prohibited.",
+            )
+
         # 1. Block commits directly on main or master
         if git_subcmd == "commit":
             branch = get_current_git_branch()
@@ -233,6 +242,8 @@ def run_tests() -> None:
         ("git branch -D old-branch", "force_ask", "Force branch delete"),
         ("git stash drop", "force_ask", "Drop git stash"),
         ("git stash clear", "force_ask", "Clear git stash"),
+        ("git add portfolio.db", "deny", "Stage sqlite db binary"),
+        ("git commit -m 'add' test.sqlite3", "deny", "Commit sqlite binary"),
         ("ls -la", "allow", "Safe ls command"),
     ]
     # Cases evaluated while the checked-out branch is 'master'.
