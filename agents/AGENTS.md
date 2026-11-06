@@ -29,6 +29,7 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 - **Node.js / TypeScript**: Prefer `pnpm` over `npm` or `yarn` unless a lockfile (`package-lock.json` / `yarn.lock`) dictates otherwise.
 - **Search & CLI**: Prefer modern fast CLI tools (`rg` for search, `fd` / `fdfind` for file finding, `jq` for JSON, `gh` for GitHub).
 - **Command Shaping**: Always invoke target binaries directly (`git`, `uv`, `cargo`, `pnpm`, `gh`). Never chain commands with `&&`, `;`, or `||`, and avoid wrapping binaries in `eval`, `sudo`, `env`, or `$(...)` substitutions. Single direct invocations match prefix-based permission grants without manual approval prompts.
+- **Sandbox & Multi-Repository Boundaries**: Standard Sandboxed Mode isolates file writes strictly to the active workspace directory (plus `/tmp` and session artifacts). When an instruction directs you to operate on an external repository outside the active workspace (e.g. `~/Projects/<other-repo>`), sandboxed shell commands cannot write to `.git/` refs, index locks, test caches (`.pytest_cache`), or databases (`Operation not permitted`). Stay aware of the active workspace root; only elevate (`BypassSandbox: true`) the specific write command that genuinely requires out-of-workspace writes.
 
 ## 4. Git Conventions, PR Sizing & Safety
 - **Branching**: **Never commit or push directly to `main` or `master`.** Always create a descriptive feature or fix branch (`feat/...`, `fix/...`, `refactor/...`, `chore/...`).
@@ -63,3 +64,4 @@ When tasks require deep code review, extensive test execution, or security audit
 - **`code-reviewer`** (`~/.claude/agents/code-reviewer.md`): Audits git diffs for correctness, edge cases, and style compliance.
 - **`test-runner`** (`~/.claude/agents/test-runner.md`): Runs test suites in isolation and reports concise root-cause diagnostics without polluting main chat.
 - **`security-auditor`** (`~/.claude/agents/security-auditor.md`): Sanitizes commits and configurations for leaked credentials, PII, and private paths before pushing.
+- **Subagent Platform Dispatch**: In Claude Code, subagent Markdown specifications under `~/.claude/agents/` are discovered automatically. In Antigravity, invoke custom subagent personas by invoking `TypeName: "self"` with a specialized prompt role (e.g. embedding the instructions from `agents/subagents/code-reviewer.md`), or declare the subagent via `define_subagent` prior to calling `invoke_subagent`.

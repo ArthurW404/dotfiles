@@ -15,11 +15,15 @@ import subprocess
 import sys
 
 
-def get_current_git_branch() -> str | None:
+def get_current_git_branch(cwd: str | None = None) -> str | None:
     """Retrieve current Git branch name if inside a git repository."""
     try:
+        cmd = ["git"]
+        if cwd:
+            cmd.extend(["-C", cwd])
+        cmd.extend(["rev-parse", "--abbrev-ref", "HEAD"])
         res = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+            cmd,
             capture_output=True,
             text=True,
             timeout=1,
@@ -33,19 +37,56 @@ def get_current_git_branch() -> str | None:
     return None
 
 
+def parse_git_command(cmd: str) -> tuple[str | None, str | None]:
+    """Parse git subcommand and target working directory from a command string.
+
+    Returns (subcommand, target_dir).
+    """
+    tokens = cmd.strip().split()
+    if not tokens or tokens[0] != "git":
+        return None, None
+
+    idx = 1
+    target_dir = None
+    while idx < len(tokens):
+        token = tokens[idx]
+        if token == "-C" and idx + 1 < len(tokens):
+            target_dir = tokens[idx + 1]
+            idx += 2
+        elif token.startswith("-C") and len(token) > 2:
+            target_dir = token[2:]
+            idx += 1
+        elif token.startswith("--work-tree="):
+            target_dir = token.split("=", 1)[1]
+            idx += 1
+        elif token in ("-c", "--git-dir"):
+            idx += 2
+        elif token.startswith("-"):
+            idx += 1
+        else:
+            return token, target_dir
+    return None, target_dir
+
+
 # `git push` options that consume the following token as their value.
 PUSH_VALUE_FLAGS = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
 
 
 def push_refspecs(cmd: str) -> list[str]:
     """Return the refspecs of a `git push` command (positionals after the remote)."""
+    tokens = cmd.split()
+    try:
+        push_idx = tokens.index("push")
+    except ValueError:
+        return []
+
     positionals = []
-    tokens = iter(cmd.split()[2:])  # Skip "git push".
-    for token in tokens:
+    rest = iter(tokens[push_idx + 1 :])
+    for token in rest:
         if token in ("&&", "||", ";", "|"):
             break
         if token in PUSH_VALUE_FLAGS:
-            next(tokens, None)
+            next(rest, None)
         elif not token.startswith("-"):
             positionals.append(token)
     return [spec.lstrip("+") for spec in positionals[1:]]
@@ -79,10 +120,8 @@ def evaluate_command(command: str) -> tuple[str, str]:
         return "allow", "Empty command"
 
     # Git command inspection
-    git_match = re.match(r"^git\s+([a-zA-Z0-9_-]+)", cmd)
-    if git_match:
-        git_subcmd = git_match.group(1)
-
+    git_subcmd, git_dir = parse_git_command(cmd)
+    if git_subcmd:
         # 0. Block staging or committing database binaries
         if git_subcmd in ("add", "commit") and re.search(
             r"(\.sqlite|\.sqlite3|\.db|\.duckdb)\b", cmd
@@ -91,10 +130,9 @@ def evaluate_command(command: str) -> tuple[str, str]:
                 "deny",
                 "Staging or committing database binaries (*.db, *.sqlite*, *.duckdb) is prohibited.",
             )
-
         # 1. Block commits directly on main or master
         if git_subcmd == "commit":
-            branch = get_current_git_branch()
+            branch = get_current_git_branch(git_dir)
             if branch in ("main", "master"):
                 return (
                     "deny",
@@ -124,7 +162,7 @@ def evaluate_command(command: str) -> tuple[str, str]:
                     "Direct push to 'main'/'master' is prohibited by global agent rules. "
                     "Push feature branches and merge via pull request.",
                 )
-            branch = get_current_git_branch()
+            branch = get_current_git_branch(git_dir)
             if branch in ("main", "master") and pushes_current_branch(refspecs):
                 return (
                     "deny",
@@ -156,12 +194,19 @@ def evaluate_command(command: str) -> tuple[str, str]:
                 "Wholesale discard of all working tree changes. User confirmation required.",
             )
 
-        # 4. Require confirmation for branch deletion or history rebase/merge
+        # 4. Require confirmation for branch deletion
         if git_subcmd == "branch" and re.search(r"\s-[a-zA-Z]*D\b", cmd):
             return "force_ask", "Force deleting a git branch ('git branch -D'). User confirmation required."
 
+        # 5. Allow rebase/merge on feature branches, protect master/main
         if git_subcmd in ("rebase", "merge"):
-            return "force_ask", "Branch rebase/merge rewrites branch topology. User confirmation required."
+            branch = get_current_git_branch(git_dir)
+            if branch in ("main", "master"):
+                return (
+                    "deny",
+                    f"Direct {git_subcmd} on '{branch}' branch is prohibited. Work on feature branches.",
+                )
+            return "allow", f"Safe git {git_subcmd} on feature branch"
 
         if git_subcmd == "stash" and re.search(r"\b(drop|clear)\b", cmd):
             return (
@@ -203,15 +248,7 @@ def evaluate_command(command: str) -> tuple[str, str]:
     if re.search(r"\bdd\s+if=.*of=/dev/[a-z]+", cmd) or re.search(r"\bmkfs\b", cmd):
         return "deny", "Direct disk block device write detected. Blocked by safety guard."
 
-    # 7. Require confirmation for branch deletion or history rebase/merge
-    if re.search(r"\bgit\s+branch\s+-[a-zA-Z]*D\b", cmd):
-        return "force_ask", "Force deleting a git branch ('git branch -D'). User confirmation required."
-
-    if re.search(r"\bgit\s+(rebase|merge)\b", cmd):
-        # We allow merge/rebase on feature branches with user confirmation
-        return "force_ask", "Branch rebase/merge rewrites branch topology. User confirmation required."
-
-    # 8. Modifying sensitive environment / token files via redirection
+    # 7. Modifying sensitive environment / token files via redirection
     if re.search(r">\s*(\.env|.*id_rsa|.*secret|.*token)", cmd, re.IGNORECASE):
         return "force_ask", "Modifying sensitive credentials/env file via shell redirection."
 
@@ -245,6 +282,17 @@ def run_tests() -> None:
         ("git add portfolio.db", "deny", "Stage sqlite db binary"),
         ("git commit -m 'add' test.sqlite3", "deny", "Commit sqlite binary"),
         ("ls -la", "allow", "Safe ls command"),
+        ("readlink /etc/localtime", "allow", "Safe symlink inspection"),
+        ("realpath .", "allow", "Safe realpath command"),
+        ("basename /path/to/file", "allow", "Safe basename command"),
+        ("git merge-base origin/main HEAD", "allow", "Safe merge-base calculation"),
+        ("git merge-tree HEAD origin/main", "allow", "Safe merge-tree inspection"),
+        ("git --no-pager diff", "allow", "Safe diff with global flag"),
+        ("git rebase origin/main", "allow", "Safe rebase on feature branch"),
+        ("git merge feat/x", "allow", "Safe merge on feature branch"),
+        ("git -C /some/repo merge feat/x", "allow", "Safe merge with -C on feature branch"),
+        ("git -C /some/repo rebase origin/main", "allow", "Safe rebase with -C on feature branch"),
+        ("readlink symlink > .env", "force_ask", "Block redirection into sensitive env file"),
     ]
     # Cases evaluated while the checked-out branch is 'master'.
     master_cases = [
@@ -256,6 +304,11 @@ def run_tests() -> None:
         ("git push -o ci.skip origin", "deny", "Push option value is not a refspec"),
         ("git push git@github.com:me/repo.git", "deny", "Colon in remote URL is not a refspec"),
         ("git commit -m wip", "deny", "Commit on master"),
+        ("git -C /some/repo commit -m wip", "deny", "Commit with -C flag on master"),
+        ("git rebase origin/master", "deny", "Direct rebase on master"),
+        ("git merge feat/x", "deny", "Direct merge on master"),
+        ("git -C /some/repo rebase origin/master", "deny", "Rebase with -C on master"),
+        ("git -C /some/repo merge feat/x", "deny", "Merge with -C on master"),
     ]
     from unittest import mock
 
