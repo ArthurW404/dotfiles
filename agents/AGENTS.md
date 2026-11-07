@@ -33,6 +33,7 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 
 ## 4. Git Conventions, PR Sizing & Safety
 - **Branching**: **Never commit or push directly to `main` or `master`.** Always create a descriptive feature or fix branch (`feat/...`, `fix/...`, `refactor/...`, `chore/...`).
+- **Fresh Base Before Branching / Worktrees**: Always fetch latest remote changes (`git fetch origin`) before creating any new branch or worktree. Never base new work on a stale local base.
 - **Diff Sizing Budget**: Keep PRs small, high-signal, and effortless to review.
   - **Target**: **< 200 lines** of functional diff across **≤ 3–5 files** (excluding pure test fixtures/data).
   - **Warning Threshold**: **> 300 lines** — stop and split into logical sequential PR slices.
