@@ -12,17 +12,24 @@ Follow these engineering standards whenever branching, staging, committing, or p
 
 ## 1. Branch Safety & Lifecycle
 - **Never commit or push directly to `main` or `master`.**
-- **Session Start & Prerequisite Check**:
-  Before starting work in a new session or creating a feature branch:
+- **Session Start & Freshness Check**:
+  Before starting work in a new session, creating a feature branch, or adding a worktree:
   1. Always run `git fetch origin`.
   2. Verify base branch freshness against latest `origin/main` (or `origin/master`).
   3. If your work depends on another unmerged branch or PR, explicitly verify whether to base your branch on that feature branch (stacked PR) or wait for it to merge, avoiding building on stale code.
-- Always create a descriptive feature or fix branch from up-to-date main:
-  ```sh
-  git checkout main
-  git pull --rebase
-  git checkout -b <type>/<short-description>
-  ```
+- **Branch & Worktree Creation**:
+  Always create branches or worktrees directly from the freshly fetched remote tracking branch (`origin/main` or `origin/master`) or an up-to-date local base:
+  - **Standard In-Tree Branch**:
+    ```sh
+    git fetch origin
+    git checkout -b <type>/<short-description> origin/main
+    ```
+    *(Alternatively, fast-forward local `main`: `git checkout main`, `git pull --rebase`, `git checkout -b <type>/<short-description>`)*
+  - **Worktree**:
+    ```sh
+    git fetch origin
+    git worktree add <path> -b <type>/<short-description> origin/main
+    ```
 - **Standard Branch Types**:
   - `feat/` — New user-facing feature or enhancement
   - `fix/` — Bug fix
