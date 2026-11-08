@@ -9,6 +9,7 @@
     "command(df)",
     "command(diff)",
     "command(dirname)",
+    "command(dotfiles-sync)",
     "command(du)",
     "command(file)",
     "command(git add)",

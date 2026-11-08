@@ -71,6 +71,14 @@ if status is-interactive
     abbr -a gup 'git pull --ff-only'
     abbr -a gl 'git log --oneline --graph --decorate -n 20'
 
+    # Opportunistic background dotfiles sync if FETCH_HEAD is older than 2 hours
+    if test -x "$HOME/.local/bin/dotfiles-sync"
+        set -l fetch_head "$HOME/Projects/dotfiles/.git/FETCH_HEAD"
+        if not test -f "$fetch_head"; or test (math (date +%s) - (path mtime "$fetch_head")) -gt 7200
+            "$HOME/.local/bin/dotfiles-sync" >/dev/null 2>&1 &
+        end
+    end
+
     # Editor (alias vim/vi -> nvim when installed)
     if command -sq nvim
         alias vim='nvim'

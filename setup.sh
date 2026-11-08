@@ -179,6 +179,7 @@ fi
 
 link_item "$DOTFILES_DIR/.gitconfig"               "$HOME/.gitconfig"
 link_item "$DOTFILES_DIR/.config/git/ignore"       "$HOME/.config/git/ignore"
+link_item "$DOTFILES_DIR/bin/dotfiles-sync"        "$HOME/.local/bin/dotfiles-sync"
 
 # On Debian/Ubuntu, apt installs `fd-find` as `fdfind` and `bat` as `batcat`.
 # Link them into ~/.local/bin so non-interactive agent subshells can invoke `fd` and `bat` directly.
@@ -281,6 +282,35 @@ fi
 # On macOS, clear gatekeeper provenance on dotfiles to prevent seatbelt sandbox restrictions
 if [[ "$OS_NAME" == "Darwin" ]] && command -v xattr >/dev/null 2>&1; then
     xattr -dr com.apple.provenance "$DOTFILES_DIR" 2>/dev/null || true
+fi
+
+echo ""
+echo "=== Configuring Background Dotfiles & Agent Sync ==="
+if [[ "$OS_NAME" == "Darwin" ]]; then
+    plist_src="$DOTFILES_DIR/launchd/com.user.dotfiles-sync.plist"
+    plist_dst="$HOME/Library/LaunchAgents/com.user.dotfiles-sync.plist"
+    link_item "$plist_src" "$plist_dst"
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would load LaunchAgent: launchctl load -w $plist_dst"
+    else
+        launchctl unload "$plist_dst" 2>/dev/null || true
+        launchctl load -w "$plist_dst" 2>/dev/null || true
+        echo "[ok]   LaunchAgent registered (runs hourly & on wake)"
+    fi
+elif [[ "$OS_NAME" == "Linux" ]]; then
+    if command -v systemctl >/dev/null 2>&1; then
+        sys_dir="$HOME/.config/systemd/user"
+        mkdir -p "$sys_dir"
+        link_item "$DOTFILES_DIR/systemd/dotfiles-sync.service" "$sys_dir/dotfiles-sync.service"
+        link_item "$DOTFILES_DIR/systemd/dotfiles-sync.timer"   "$sys_dir/dotfiles-sync.timer"
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "[dry-run] Would enable systemd timer: systemctl --user enable --now dotfiles-sync.timer"
+        else
+            systemctl --user daemon-reload 2>/dev/null || true
+            systemctl --user enable --now dotfiles-sync.timer 2>/dev/null || true
+            echo "[ok]   Systemd user timer enabled (runs hourly)"
+        fi
+    fi
 fi
 
 if [[ "$INSTALL_X11" == true ]]; then
