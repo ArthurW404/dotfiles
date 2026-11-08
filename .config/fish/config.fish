@@ -67,6 +67,8 @@ if status is-interactive
     abbr -a gds git diff --staged
     abbr -a gco git checkout
     abbr -a gcb git checkout -b
+    abbr -a gfa 'git fetch --all --prune'
+    abbr -a gup 'git pull --ff-only'
     abbr -a gl 'git log --oneline --graph --decorate -n 20'
 
     # Editor (alias vim/vi -> nvim when installed)

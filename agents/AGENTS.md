@@ -33,7 +33,11 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 
 ## 4. Git Conventions, PR Sizing & Safety
 - **Branching**: **Never commit or push directly to `main` or `master`.** Always create a descriptive feature or fix branch (`feat/...`, `fix/...`, `refactor/...`, `chore/...`).
-- **Fresh Base Before Branching / Worktrees**: Always fetch latest remote changes (`git fetch origin`) before creating any new branch or worktree. Never base new work on a stale local base.
+- **Remote Base Freshness & Syncing**:
+  - **Always Fetch Before Branching / Worktrees**: Run `git fetch origin` before creating any new branch or worktree. In Antigravity sandboxed mode, remote operations (`git fetch`, `git pull`, `git push`) touch the network and must run with `BypassSandbox: true` if sandboxed access fails.
+  - **Branch Directly From Remote Tracking Ref**: Prefer branching directly from `origin/main` or `origin/master` (`git checkout -b <type>/<description> origin/main` or `origin/master`).
+  - **Fast-Forward Local Base**: If maintaining a local `main`/`master`, fast-forward it cleanly before branching: `git merge --ff-only origin/main` (or `origin/master`) or `git pull --ff-only` (with `BypassSandbox: true`).
+  - **Never Branch From Feature Branches**: Unless intentionally constructing a stacked PR, never create a new branch while checked out on an existing feature branch.
 - **Diff Sizing Budget**: Keep PRs small, high-signal, and effortless to review.
   - **Target**: **< 200 lines** of functional diff across **≤ 3–5 files** (excluding pure test fixtures/data).
   - **Warning Threshold**: **> 300 lines** — stop and split into logical sequential PR slices.

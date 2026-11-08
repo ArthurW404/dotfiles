@@ -107,6 +107,190 @@ def pushes_current_branch(refspecs: list[str]) -> bool:
     return not refspecs or any(spec in ("HEAD", "@") for spec in refspecs)
 
 
+def git_ref_exists(ref: str, cwd: str | None = None) -> bool:
+    """Check if a git ref exists locally."""
+    try:
+        cmd = ["git"]
+        if cwd:
+            cmd.extend(["-C", cwd])
+        cmd.extend(["rev-parse", "--verify", ref])
+        res = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=1,
+            check=False,
+        )
+        return res.returncode == 0
+    except Exception:
+        return False
+
+
+def get_branch_behind_count(base_ref: str, upstream_ref: str, cwd: str | None = None) -> int:
+    """Return how many commits upstream_ref is ahead of base_ref."""
+    try:
+        cmd = ["git"]
+        if cwd:
+            cmd.extend(["-C", cwd])
+        cmd.extend(["rev-list", f"{base_ref}..{upstream_ref}", "--count"])
+        res = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=1,
+            check=False,
+        )
+        if res.returncode == 0:
+            return int(res.stdout.strip())
+    except Exception:
+        pass
+    return 0
+
+
+def parse_branch_creation(cmd: str) -> tuple[bool, str | None, str | None]:
+    """Parse branch creation from a git command string.
+
+    Returns (is_creation, new_branch_name, start_point).
+    """
+    tokens = cmd.strip().split()
+    try:
+        git_idx = tokens.index("git")
+    except ValueError:
+        return False, None, None
+
+    idx = git_idx + 1
+    while idx < len(tokens):
+        token = tokens[idx]
+        if token == "-C" and idx + 1 < len(tokens):
+            idx += 2
+        elif token.startswith("-C") or token.startswith("--work-tree="):
+            idx += 1
+        elif token in ("-c", "--git-dir") and idx + 1 < len(tokens):
+            idx += 2
+        elif token.startswith("-"):
+            idx += 1
+        else:
+            break
+
+    if idx >= len(tokens):
+        return False, None, None
+
+    subcmd = tokens[idx]
+    args = tokens[idx + 1 :]
+
+    if subcmd in ("checkout", "switch"):
+        branch_flag_idx = -1
+        for i, arg in enumerate(args):
+            if arg in ("-b", "-B", "-c", "-C"):
+                branch_flag_idx = i
+                break
+        if branch_flag_idx == -1 or branch_flag_idx + 1 >= len(args):
+            return False, None, None
+        new_branch = args[branch_flag_idx + 1]
+        start_point = None
+        for arg in args[branch_flag_idx + 2 :]:
+            if not arg.startswith("-") and arg not in ("&&", "||", ";", "|"):
+                start_point = arg
+                break
+        return True, new_branch, start_point
+
+    if subcmd == "branch":
+        mod_or_list_flags = {
+            "-d", "-D", "--delete",
+            "-m", "-M", "--move",
+            "-c", "-C", "--copy",
+            "-a", "--all", "-r", "--remotes",
+            "-l", "--list",
+            "-u", "--set-upstream-to",
+            "-f", "--force",
+        }
+        if any(arg in mod_or_list_flags for arg in args):
+            return False, None, None
+        positionals = [arg for arg in args if not arg.startswith("-") and arg not in ("&&", "||", ";", "|")]
+        if not positionals:
+            return False, None, None
+        new_branch = positionals[0]
+        start_point = positionals[1] if len(positionals) > 1 else None
+        return True, new_branch, start_point
+
+    if subcmd == "worktree":
+        if not args or args[0] != "add":
+            return False, None, None
+        wt_args = args[1:]
+        new_branch = None
+        positionals = []
+        i = 0
+        while i < len(wt_args):
+            arg = wt_args[i]
+            if arg in ("-b", "-B") and i + 1 < len(wt_args):
+                new_branch = wt_args[i + 1]
+                i += 2
+                continue
+            if not arg.startswith("-") and arg not in ("&&", "||", ";", "|"):
+                positionals.append(arg)
+            i += 1
+        start_point = positionals[1] if len(positionals) > 1 else None
+        return True, new_branch, start_point
+
+    return False, None, None
+
+
+def check_branch_creation_freshness(
+    cmd: str,
+    git_dir: str | None = None,
+) -> tuple[str, str]:
+    """Inspect branch creation to ensure it does not branch from a stale or unintended base."""
+    is_creation, new_branch, start_point = parse_branch_creation(cmd)
+    if not is_creation:
+        return "allow", "Not a branch creation command"
+
+    # Branching directly from remote tracking ref is always fresh
+    if start_point and (start_point.startswith("origin/") or start_point.startswith("upstream/")):
+        return "allow", f"Branching directly from remote tracking ref '{start_point}'"
+
+    curr_branch = get_current_git_branch(git_dir)
+
+    # Case 1: No explicit start point -> defaults to HEAD (curr_branch)
+    if not start_point:
+        if curr_branch in ("main", "master"):
+            upstream = f"origin/{curr_branch}"
+            if git_ref_exists(upstream, git_dir):
+                behind = get_branch_behind_count("HEAD", upstream, git_dir)
+                if behind > 0:
+                    branch_label = new_branch if new_branch else "new branch"
+                    return (
+                        "deny",
+                        f"Local '{curr_branch}' is {behind} commit(s) behind '{upstream}'. "
+                        f"Fast-forward first ('git merge --ff-only {upstream}' or 'git pull --ff-only' with BypassSandbox) "
+                        f"or branch directly from remote ('git checkout -b {branch_label} {upstream}').",
+                    )
+            return "allow", f"Branching from up-to-date '{curr_branch}'"
+
+        if curr_branch and not curr_branch.startswith("HEAD"):
+            branch_label = new_branch if new_branch else "new branch"
+            return (
+                "force_ask",
+                f"Creating branch '{branch_label}' from feature branch '{curr_branch}'. "
+                f"If branching from latest remote main/master was intended, specify 'origin/main' or 'origin/master' as start point.",
+            )
+
+    # Case 2: Explicit start point provided
+    if start_point in ("main", "master"):
+        upstream = f"origin/{start_point}"
+        if git_ref_exists(upstream, git_dir):
+            behind = get_branch_behind_count(start_point, upstream, git_dir)
+            if behind > 0:
+                branch_label = new_branch if new_branch else "new branch"
+                return (
+                    "deny",
+                    f"Specified base '{start_point}' is {behind} commit(s) behind '{upstream}'. "
+                    f"Fast-forward first or branch directly from remote ('git checkout -b {branch_label} {upstream}').",
+                )
+        return "allow", f"Branching from up-to-date base '{start_point}'"
+
+    return "allow", "Branch creation passed safety checks"
+
+
 def evaluate_command(command: str) -> tuple[str, str]:
     """Evaluate command and return (decision, reason).
 
@@ -130,6 +314,12 @@ def evaluate_command(command: str) -> tuple[str, str]:
                 "deny",
                 "Staging or committing database binaries (*.db, *.sqlite*, *.duckdb) is prohibited.",
             )
+
+        # 0.1 Check branch creation & worktree base freshness
+        if git_subcmd in ("checkout", "switch", "branch", "worktree"):
+            fresh_decision, fresh_reason = check_branch_creation_freshness(cmd, git_dir)
+            if fresh_decision != "allow":
+                return fresh_decision, fresh_reason
         # 1. Block commits directly on main or master
         if git_subcmd == "commit":
             branch = get_current_git_branch(git_dir)
@@ -202,6 +392,15 @@ def evaluate_command(command: str) -> tuple[str, str]:
         if git_subcmd in ("rebase", "merge"):
             branch = get_current_git_branch(git_dir)
             if branch in ("main", "master"):
+                if git_subcmd == "merge" and "--ff-only" in cmd:
+                    target_match = re.search(
+                        r"(?:^|\s)(origin/(?:main|master|HEAD)|@\{u\}|@\{upstream\})(?:$|\s)", cmd
+                    )
+                    if target_match:
+                        return (
+                            "allow",
+                            f"Safe fast-forward sync of remote tracking branch '{target_match.group(1)}' on {branch}",
+                        )
                 return (
                     "deny",
                     f"Direct {git_subcmd} on '{branch}' branch is prohibited. Work on feature branches.",
@@ -309,15 +508,43 @@ def run_tests() -> None:
         ("git merge feat/x", "deny", "Direct merge on master"),
         ("git -C /some/repo rebase origin/master", "deny", "Rebase with -C on master"),
         ("git -C /some/repo merge feat/x", "deny", "Merge with -C on master"),
+        ("git merge --ff-only origin/master", "allow", "Fast-forward merge of origin/master on master"),
+        ("git merge --ff-only origin/main", "allow", "Fast-forward merge of origin/main on master"),
+        ("git merge --ff-only @{u}", "allow", "Fast-forward merge of upstream tracking ref on master"),
+        ("git merge origin/master", "deny", "Direct merge without --ff-only on master"),
     ]
     from unittest import mock
 
     cases = [(*case, "feat/test") for case in test_cases]
     cases += [(*case, "master") for case in master_cases]
 
+    # Dedicated feature-branch creation tests
+    feature_branch_cases = [
+        ("git checkout -b feat/stacked", "force_ask", "Branching from feature branch without start point", "feat/test"),
+        ("git checkout -b feat/new origin/master", "allow", "Branching from origin/master on feature branch", "feat/test"),
+        ("git switch -c feat/stacked", "force_ask", "Switch -c from feature branch without start point", "feat/test"),
+        ("git switch -c feat/new origin/main", "allow", "Switch -c from origin/main on feature branch", "feat/test"),
+        ("git branch feat/stacked", "force_ask", "Branch creation from feature branch without start point", "feat/test"),
+        ("git branch feat/new origin/master", "allow", "Branch creation from origin/master on feature branch", "feat/test"),
+        ("git worktree add ../wt origin/master", "allow", "Worktree add with origin/master", "feat/test"),
+        ("git worktree add ../wt", "force_ask", "Worktree add from feature branch without start point", "feat/test"),
+    ]
+    cases += feature_branch_cases
+
+    # Dedicated staleness test cases with mocked behind-counts
+    staleness_cases = [
+        ("git checkout -b feat/stale", "deny", "Branching from stale master", "master", 2),
+        ("git checkout -b feat/fresh", "allow", "Branching from fresh master", "master", 0),
+        ("git checkout -b feat/explicit-fresh origin/master", "allow", "Branching directly from origin/master", "master", 2),
+        ("git checkout -b feat/explicit-stale master", "deny", "Branching with explicit stale master start point", "feat/test", 2),
+    ]
+
+    total_tests = len(cases) + len(staleness_cases)
     passed = 0
     for cmd, expected_decision, desc, branch in cases:
-        with mock.patch(f"{__name__}.get_current_git_branch", return_value=branch):
+        with mock.patch(f"{__name__}.get_current_git_branch", return_value=branch), \
+             mock.patch(f"{__name__}.git_ref_exists", return_value=True), \
+             mock.patch(f"{__name__}.get_branch_behind_count", return_value=0):
             decision, reason = evaluate_command(cmd)
         if decision == expected_decision:
             passed += 1
@@ -325,8 +552,19 @@ def run_tests() -> None:
         else:
             print(f"  [FAIL] {desc}: '{cmd}' -> got {decision}, expected {expected_decision} ({reason})")
 
-    print(f"\nResults: {passed}/{len(cases)} tests passed.")
-    if passed != len(cases):
+    for cmd, expected_decision, desc, branch, behind_count in staleness_cases:
+        with mock.patch(f"{__name__}.get_current_git_branch", return_value=branch), \
+             mock.patch(f"{__name__}.git_ref_exists", return_value=True), \
+             mock.patch(f"{__name__}.get_branch_behind_count", return_value=behind_count):
+            decision, reason = evaluate_command(cmd)
+        if decision == expected_decision:
+            passed += 1
+            print(f"  [PASS] {desc}: '{cmd}' -> {decision}")
+        else:
+            print(f"  [FAIL] {desc}: '{cmd}' -> got {decision}, expected {expected_decision} ({reason})")
+
+    print(f"\nResults: {passed}/{total_tests} tests passed.")
+    if passed != total_tests:
         sys.exit(1)
 
 
