@@ -18,17 +18,23 @@ Follow these engineering standards whenever branching, staging, committing, or p
   2. Verify base branch freshness against latest `origin/main` (or `origin/master`).
   3. If your work depends on another unmerged branch or PR, explicitly verify whether to base your branch on that feature branch (stacked PR) or wait for it to merge, avoiding building on stale code.
 - **Branch & Worktree Creation**:
-  Always create branches or worktrees directly from the freshly fetched remote tracking branch (`origin/main` or `origin/master`) or an up-to-date local base:
-  - **Standard In-Tree Branch**:
+  Always create branches or worktrees directly from the freshly fetched remote tracking branch (`origin/main` or `origin/master`) or an up-to-date local base. In Antigravity sandboxed execution, remote Git commands (`fetch`, `pull`, `push`) touch the network and must run with `BypassSandbox: true`.
+  - **Standard In-Tree Branch (Direct from Remote Tracking Ref — Recommended)**:
     ```sh
     git fetch origin
-    git checkout -b <type>/<short-description> origin/main
+    git checkout -b <type>/<short-description> origin/main  # or origin/master
     ```
-    *(Alternatively, fast-forward local `main`: `git checkout main`, `git pull --rebase`, `git checkout -b <type>/<short-description>`)*
+  - **Alternative (Fast-Forward Local Base First)**:
+    ```sh
+    git checkout main  # or master
+    git merge --ff-only origin/main  # or origin/master
+    git checkout -b <type>/<short-description>
+    ```
+    *(Without checking out local base: `git fetch origin main:main` or `git fetch origin master:master`)*
   - **Worktree**:
     ```sh
     git fetch origin
-    git worktree add <path> -b <type>/<short-description> origin/main
+    git worktree add <path> -b <type>/<short-description> origin/main  # or origin/master
     ```
 - **Standard Branch Types**:
   - `feat/` — New user-facing feature or enhancement

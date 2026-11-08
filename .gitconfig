@@ -59,6 +59,7 @@
     amend = commit --amend --no-edit
     last = log -1 HEAD --stat
     diffs = diff --staged
+    up = pull --ff-only
 
 # Machine-local overrides (user.name, user.email, GPG/SSH keys — untracked via global gitignore)
 [include]
