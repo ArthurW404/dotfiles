@@ -6,7 +6,7 @@ tools:
   - GlobTool
   - GrepTool
   - FileReadTool
-model: inherit
+model: opus
 ---
 
 # API Contract Auditor Subagent

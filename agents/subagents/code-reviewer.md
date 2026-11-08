@@ -6,7 +6,7 @@ tools:
   - GlobTool
   - GrepTool
   - FileReadTool
-model: inherit
+model: opus
 ---
 
 # Code Reviewer Subagent
