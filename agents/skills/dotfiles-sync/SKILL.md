@@ -29,3 +29,16 @@ description: >-
    ```sh
    ./setup.sh
    ```
+
+## Automated Dotfiles & Agent Hub Sync (`dotfiles-sync`)
+- `bin/dotfiles-sync`: Non-destructive background synchronization CLI linked to `~/.local/bin/dotfiles-sync`.
+  - Safely pulls remote `master` when clean, or updates the local `master` ref non-destructively via `git fetch origin master:master` when working on a feature branch.
+  - Automatically runs `sync_permissions.py` and submodule updates whenever new commits land on `master`.
+  - Configured as an automated background service by `./setup.sh`:
+    - **macOS**: `launchd` user agent (`~/Library/LaunchAgents/com.user.dotfiles-sync.plist`, runs hourly & on wake).
+    - **Linux**: `systemd --user` timer & service (`dotfiles-sync.timer`, runs hourly).
+  - Also triggered opportunistically in background on interactive `fish` shell launch if remote tracking refs are older than 2 hours.
+  - Inspect sync status anytime:
+    ```sh
+    dotfiles-sync --status
+    ```
