@@ -6,7 +6,7 @@ tools:
   - GlobTool
   - GrepTool
   - FileReadTool
-model: opus
+model: opus # Claude: opus | Antigravity: pro (Argon tier)
 ---
 
 # API Contract Auditor Subagent

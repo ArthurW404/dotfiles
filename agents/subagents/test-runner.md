@@ -6,7 +6,7 @@ tools:
   - GlobTool
   - GrepTool
   - FileReadTool
-model: inherit
+model: inherit # Claude: inherit | Antigravity: inherit / flash
 ---
 
 # Test Runner Subagent
