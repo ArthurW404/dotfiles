@@ -7,6 +7,10 @@ set -euo pipefail
 # Ensure standard tool paths are accessible in launchd / cron / subshells
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
+# Prevent interactive prompts and set connect timeouts for remote operations
+export GIT_TERMINAL_PROMPT=0
+export GIT_SSH_COMMAND="ssh -o BatchMode=yes -o ConnectTimeout=10"
+
 # Resolve symlinks to locate the real dotfiles repository root
 SCRIPT_SOURCE="${BASH_SOURCE[0]}"
 while [[ -L "$SCRIPT_SOURCE" ]]; do
@@ -17,6 +21,7 @@ done
 SCRIPT_DIR="$(cd -P "$(dirname "$SCRIPT_SOURCE")" && pwd)"
 DOTFILES_DIR="$(cd -P "$SCRIPT_DIR/.." && pwd)"
 LOG_FILE="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/sync.log"
+LOCK_DIR="/tmp/dotfiles-sync.lock"
 
 VERBOSE=false
 DRY_RUN=false
@@ -28,9 +33,28 @@ log() {
     if [[ "$VERBOSE" == true ]]; then
         echo "[$timestamp] $msg"
     fi
-    if [[ -d "$(dirname "$LOG_FILE")" ]]; then
-        echo "[$timestamp] $msg" >> "$LOG_FILE"
+    echo "[$timestamp] $msg" >> "$LOG_FILE" 2>/dev/null || true
+}
+
+acquire_lock() {
+    if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+        local lock_mtime=0
+        if [[ "$(uname -s)" == "Darwin" ]]; then
+            lock_mtime="$(stat -f "%m" "$LOCK_DIR" 2>/dev/null || echo 0)"
+        else
+            lock_mtime="$(stat -c "%Y" "$LOCK_DIR" 2>/dev/null || echo 0)"
+        fi
+        local now
+        now="$(date +%s)"
+        # Break stale locks older than 10 minutes (600 seconds)
+        if (( now - lock_mtime > 600 )); then
+            rm -rf "$LOCK_DIR"
+            mkdir "$LOCK_DIR" 2>/dev/null || return 1
+        else
+            return 1
+        fi
     fi
+    return 0
 }
 
 show_status() {
@@ -91,14 +115,18 @@ for arg in "$@"; do
     esac
 done
 
-# Ensure log directory exists or fallback to /tmp
-if ! mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null; then
+# Ensure log directory and file are writable, or fallback to /tmp
+if ! (mkdir -p "$(dirname "$LOG_FILE")" 2>/dev/null && touch "$LOG_FILE" 2>/dev/null); then
     LOG_FILE="/tmp/dotfiles-sync.log"
+    touch "$LOG_FILE" 2>/dev/null || true
 fi
 
 # Truncate log file if > 500 lines to prevent runaway growth
-if [[ -f "$LOG_FILE" && "$(wc -l < "$LOG_FILE")" -gt 500 ]]; then
-    tail -n 200 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE"
+if [[ -f "$LOG_FILE" && -r "$LOG_FILE" ]]; then
+    LOG_LINES="$(wc -l < "$LOG_FILE" 2>/dev/null || echo 0)"
+    if [[ "$LOG_LINES" -gt 500 ]]; then
+        (tail -n 200 "$LOG_FILE" > "${LOG_FILE}.tmp" && mv "${LOG_FILE}.tmp" "$LOG_FILE") 2>/dev/null || true
+    fi
 fi
 
 if [[ ! -d "$DOTFILES_DIR/.git" ]]; then
@@ -106,14 +134,24 @@ if [[ ! -d "$DOTFILES_DIR/.git" ]]; then
     exit 0
 fi
 
-# Skip if git index is currently locked by another process
+# Concurrency guard: avoid racing simultaneous fish startup / launchd instances
+if ! acquire_lock; then
+    log "[skip] Another sync instance is currently active, skipping"
+    exit 0
+fi
+trap 'rm -rf "$LOCK_DIR"' EXIT
+
+# Skip if git index is currently locked by active git editing/commit
 if [[ -f "$DOTFILES_DIR/.git/index.lock" ]]; then
     log "[skip] Git index lock active, skipping sync cycle"
     exit 0
 fi
 
+# Low-speed and connection timeouts to prevent hanging on captive portals
+GIT_FETCH_CMD=(git -c http.lowSpeedLimit=1000 -c http.lowSpeedTime=10 -C "$DOTFILES_DIR")
+
 # Fetch latest refs from origin quietly. If offline or unreachable, exit cleanly.
-if ! git -C "$DOTFILES_DIR" fetch origin --quiet 2>/dev/null; then
+if ! "${GIT_FETCH_CMD[@]}" fetch origin --quiet 2>/dev/null; then
     log "[offline] Could not reach remote origin, skipping"
     exit 0
 fi
@@ -125,7 +163,8 @@ if git -C "$DOTFILES_DIR" rev-parse --verify origin/main >/dev/null 2>&1; then
 fi
 
 CURRENT_BRANCH="$(git -C "$DOTFILES_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "HEAD")"
-IS_DIRTY="$(git -C "$DOTFILES_DIR" status --porcelain 2>/dev/null || true)"
+# Check only tracked file modifications; untracked scratch files do not block fast-forward
+IS_DIRTY="$(git -C "$DOTFILES_DIR" status --porcelain --untracked-files=no 2>/dev/null || true)"
 SYNCED=false
 
 if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
@@ -136,8 +175,11 @@ if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
         if [[ "$BEHIND" -gt 0 ]]; then
             log "[update] Local $DEFAULT_BRANCH is $BEHIND commit(s) behind origin/$DEFAULT_BRANCH; fast-forwarding..."
             if [[ "$DRY_RUN" == false ]]; then
-                git -C "$DOTFILES_DIR" merge --ff-only "origin/$DEFAULT_BRANCH" --quiet
-                SYNCED=true
+                if "${GIT_FETCH_CMD[@]}" merge --ff-only "origin/$DEFAULT_BRANCH" --quiet 2>/dev/null; then
+                    SYNCED=true
+                else
+                    log "[warn] Fast-forward merge of origin/$DEFAULT_BRANCH failed; manual intervention required"
+                fi
             else
                 log "[dry-run] Would run: git merge --ff-only origin/$DEFAULT_BRANCH"
             fi
@@ -146,13 +188,17 @@ if [[ "$CURRENT_BRANCH" == "$DEFAULT_BRANCH" ]]; then
         fi
     fi
 else
-    # On a feature branch: non-destructively fast-forward local default branch ref without checking it out
+    # On a feature branch: non-destructively fast-forward local default branch ref without touching working tree
     BEHIND="$(git -C "$DOTFILES_DIR" rev-list "$DEFAULT_BRANCH..origin/$DEFAULT_BRANCH" --count 2>/dev/null || echo 0)"
     if [[ "$BEHIND" -gt 0 ]]; then
         log "[update] Background updating local $DEFAULT_BRANCH ref ($BEHIND commits behind) while on $CURRENT_BRANCH..."
         if [[ "$DRY_RUN" == false ]]; then
-            git -C "$DOTFILES_DIR" fetch origin "$DEFAULT_BRANCH:$DEFAULT_BRANCH" --quiet 2>/dev/null || true
-            SYNCED=true
+            if "${GIT_FETCH_CMD[@]}" fetch origin "$DEFAULT_BRANCH:$DEFAULT_BRANCH" --quiet 2>/dev/null; then
+                NEW_REV="$(git -C "$DOTFILES_DIR" rev-parse --short "$DEFAULT_BRANCH" 2>/dev/null || echo "")"
+                log "[success] Background updated local $DEFAULT_BRANCH to $NEW_REV while on $CURRENT_BRANCH"
+            else
+                log "[warn] Background update of $DEFAULT_BRANCH ref failed (diverged); manual sync required"
+            fi
         else
             log "[dry-run] Would run: git fetch origin $DEFAULT_BRANCH:$DEFAULT_BRANCH"
         fi
@@ -161,7 +207,7 @@ else
     fi
 fi
 
-# Run post-sync housekeeping if new commits were integrated
+# Run post-sync housekeeping ONLY when master working tree was updated
 if [[ "$SYNCED" == true && "$DRY_RUN" == false ]]; then
     # Update submodules if defined
     if [[ -f "$DOTFILES_DIR/.gitmodules" ]]; then
