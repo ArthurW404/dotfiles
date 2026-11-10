@@ -3,9 +3,9 @@ name: test-runner
 description: Autonomous test executor and failure diagnostic agent. Executes test suites and linters in isolation and returns concise root-cause digests without flooding the main conversation context.
 tools:
   - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
+  - Read
+  - Grep
+  - Glob
 model: inherit
 ---
 

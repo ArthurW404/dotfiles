@@ -3,10 +3,10 @@ name: security-auditor
 description: Pre-push public repository sanitizer. Scans commits, staged changes, and dotfiles for leaked credentials, API tokens, personal identifiable information (PII), or private paths.
 tools:
   - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
-model: inherit
+  - Read
+  - Grep
+  - Glob
+model: sonnet
 ---
 
 # Security Auditor Subagent

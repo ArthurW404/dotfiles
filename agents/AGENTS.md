@@ -65,8 +65,12 @@ To keep context lean, detailed language standards and workflows live in modular 
 - **GCP architecture, Cloud Run & multi-agent solutions**: `~/.claude/skills/google-cloud-solution-build-deploy-agents/SKILL.md` / `~/.claude/skills/cloud-run-basics/SKILL.md`
 
 ## 6. Specialized Subagents
-When tasks require deep code review, extensive test execution, or security auditing, delegate to dedicated subagents (`agents/subagents/` or `invoke_subagent`):
+When tasks require deep code review, extensive test execution, security auditing, or specialized domain validation, delegate to dedicated subagents (`agents/subagents/` or `invoke_subagent`):
 - **`code-reviewer`** (`~/.claude/agents/code-reviewer.md`): Audits git diffs for correctness, edge cases, and style compliance.
 - **`test-runner`** (`~/.claude/agents/test-runner.md`): Runs test suites in isolation and reports concise root-cause diagnostics without polluting main chat.
 - **`security-auditor`** (`~/.claude/agents/security-auditor.md`): Sanitizes commits and configurations for leaked credentials, PII, and private paths before pushing.
-- **Subagent Platform Dispatch**: In Claude Code, subagent Markdown specifications under `~/.claude/agents/` are discovered automatically. In Antigravity, invoke custom subagent personas by invoking `TypeName: "self"` with a specialized prompt role (e.g. embedding the instructions from `agents/subagents/code-reviewer.md`), or declare the subagent via `define_subagent` prior to calling `invoke_subagent`.
+- **`ux-design-architect`** (`~/.claude/agents/ux-design-architect.md`): Audits information architecture, navigation depth, user flows, friction points, and edge states before implementation.
+- **`plan-critic`** (`~/.claude/agents/plan-critic.md`): Stress-tests implementation plans, RFCs, and task breakdowns against complexity limits and negative constraints.
+- **`api-contract-auditor`** (`~/.claude/agents/api-contract-auditor.md`): Validates CLI args, MCP tool definitions, SDK function signatures, and schemas for ergonomics, typing, and idempotency.
+- **`docs-auditor`** (`~/.claude/agents/docs-auditor.md`): Verifies technical documentation, guides, and SKILL.md files for runnable command accuracy, link validity, and conciseness.
+- **Subagent Platform Dispatch & Model Tiers**: In Claude Code, subagents under `~/.claude/agents/` are discovered automatically. High-reasoning subagents (`code-reviewer`, `plan-critic`, `ux-design-architect`, `api-contract-auditor`) pin `model: opus`; structured auditors (`security-auditor`, `docs-auditor`) use `model: sonnet`; execution subagents (`test-runner`) use `model: inherit`. If quota or rate limits hit, the parent agent can re-dispatch with `model: inherit`. In Antigravity, invoke custom personas via `TypeName: "self"` (or `define_subagent`) passing the role instructions, using `Model: "pro"` for complex reviews or `Model: "inherit"` / `"flash"` for lighter tasks.
