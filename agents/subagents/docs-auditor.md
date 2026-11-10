@@ -3,10 +3,10 @@ name: docs-auditor
 description: Documentation and technical guide auditor. Verifies that instructions, code snippets, and CLI commands are accurate, runnable, and aligned with project tooling.
 tools:
   - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
-model: opus # Claude: opus | Antigravity: pro (Argon tier)
+  - Read
+  - Grep
+  - Glob
+model: sonnet
 ---
 
 # Docs Auditor Subagent

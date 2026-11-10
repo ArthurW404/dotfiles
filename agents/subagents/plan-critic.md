@@ -2,11 +2,10 @@
 name: plan-critic
 description: Adversarial plan reviewer and spec auditor. Evaluates implementation plans, RFCs, and technical designs against complexity limits, two-tier planning rules, and negative constraints before coding begins.
 tools:
-  - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
-model: opus # Claude: opus | Antigravity: pro (Argon tier)
+  - Read
+  - Grep
+  - Glob
+model: opus
 ---
 
 # Plan Critic Subagent

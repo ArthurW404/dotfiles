@@ -12,6 +12,7 @@ description: >-
 - `agents/AGENTS.md`: Shared global instructions linked to Antigravity (`~/.gemini/GEMINI.md`, `~/.gemini/config/AGENTS.md`) and Claude (`~/.claude/CLAUDE.md`).
 - `agents/skills/<skill-name>/SKILL.md`: Universal skills registered in Antigravity (`~/.gemini/config/skills.json`) and symlinked for Claude (`~/.claude/skills`):
   - `git-workflow`, `cpp-style`, `python-style`, `python-uv`, `shell-style`, `code-review`, `dotfiles-sync`.
+- `agents/subagents/<agent>.md`: Dedicated subagents symlinked for Claude (`~/.claude/agents`).
 - `.config/fish/config.fish`: Primary interactive and non-interactive `fish` shell configuration (Linux & macOS aware).
 - `.zshenv`, `.zshrc`, & `.bashrc`: Cross-platform non-interactive `PATH` setup and interactive shell configs.
 - `.gitconfig` & `.config/git/ignore`: Shared Git config (includes untracked `~/.gitconfig.local` for local identity) and global ignore file.

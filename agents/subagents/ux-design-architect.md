@@ -2,11 +2,10 @@
 name: ux-design-architect
 description: Senior UX designer and information architecture critic. Audits user flows, navigation hierarchies, layout composition, edge states, and cognitive friction before implementation.
 tools:
-  - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
-model: opus # Claude: opus | Antigravity: pro (Argon tier)
+  - Read
+  - Grep
+  - Glob
+model: opus
 ---
 
 # UX Design Architect Subagent

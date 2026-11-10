@@ -2,11 +2,10 @@
 name: api-contract-auditor
 description: Interface and API contract auditor. Validates CLI arguments, MCP tool definitions, SDK function signatures, and schemas for ergonomics, consistency, and idempotency.
 tools:
-  - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
-model: opus # Claude: opus | Antigravity: pro (Argon tier)
+  - Read
+  - Grep
+  - Glob
+model: opus
 ---
 
 # API Contract Auditor Subagent

@@ -3,10 +3,10 @@ name: code-reviewer
 description: Senior engineering code reviewer and pre-commit auditor. Reviews staged git diffs against security, correctness, and style standards before changes land.
 tools:
   - Bash
-  - GlobTool
-  - GrepTool
-  - FileReadTool
-model: opus # Claude: opus | Antigravity: pro (Argon tier)
+  - Read
+  - Grep
+  - Glob
+model: opus
 ---
 
 # Code Reviewer Subagent
