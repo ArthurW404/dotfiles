@@ -151,6 +151,27 @@ def run_tests() -> None:
         else:
             print(f"  [FAIL] {desc}: '{cmd}' -> got {decision}, expected {expected_decision} ({reason})")
 
+    # Integration test for real, unmocked is_memory_repo
+    from pathlib import Path
+    import safety_guard
+    real_mem = str(Path.home() / "Projects" / "agent-memory")
+    real_dot = str(Path.home() / "Projects" / "dotfiles")
+
+    if Path(real_mem).is_dir():
+        total_tests += 1
+        if safety_guard.is_memory_repo(real_mem) is True:
+            passed += 1
+            print(f"  [PASS] Real is_memory_repo for {real_mem} -> True")
+        else:
+            print(f"  [FAIL] Real is_memory_repo for {real_mem} -> got False, expected True")
+
+    total_tests += 1
+    if safety_guard.is_memory_repo(real_dot) is False:
+        passed += 1
+        print(f"  [PASS] Real is_memory_repo for {real_dot} -> False")
+    else:
+        print(f"  [FAIL] Real is_memory_repo for {real_dot} -> got True, expected False")
+
     print(f"\nResults: {passed}/{total_tests} tests passed.")
     if passed != total_tests:
         sys.exit(1)
