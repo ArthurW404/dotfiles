@@ -1,26 +1,74 @@
 #!/usr/bin/env python3
-"""Audible alert lifecycle hook for Antigravity.
+"""Audible & remote alert lifecycle hook for Antigravity.
 
-Plays a macOS system sound when the agent finishes a turn (Stop) or asks
-the user a question (PreToolUse on ask_question). Never alters agent
-behaviour: Stop returns {} and PreToolUse defers to normal permissions.
+Plays a macOS system sound and optionally dispatches Discord webhook
+notifications when the agent finishes a turn (Stop) or asks the user
+a question (PreToolUse on ask_question). Never alters agent behavior:
+Stop returns {} and PreToolUse defers to normal permissions.
 """
 
 from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 SOUND_DONE = "/System/Library/Sounds/Glass.aiff"
 SOUND_PROMPT = "/System/Library/Sounds/Ping.aiff"
 SOUND_ERROR = "/System/Library/Sounds/Basso.aiff"
 
-# Stop reasons that warrant no sound (user already at the keyboard).
 SILENT_STOP_REASONS = {"USER_CANCELED"}
 ERROR_STOP_REASONS = {"ERROR", "MAX_TOKEN_BUDGET_EXCEEDED"}
+
+
+def get_discord_webhook_url() -> str | None:
+    """Retrieve Discord webhook URL from environment or configuration file."""
+    url = os.environ.get("DISCORD_WEBHOOK_URL")
+    if url and url.startswith("https://discord.com/api/webhooks/"):
+        return url.strip()
+
+    cfg_path = Path.home() / ".config" / "agent" / "discord.json"
+    if cfg_path.is_file():
+        try:
+            with open(cfg_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+                web_url = data.get("webhook_url", "").strip()
+                if web_url.startswith("https://discord.com/api/webhooks/"):
+                    return web_url
+        except Exception:
+            pass
+    return None
+
+
+def send_discord_notification(message: str) -> None:
+    """Send Discord notification asynchronously in the background."""
+    webhook_url = get_discord_webhook_url()
+    if not webhook_url:
+        return
+
+    payload = json.dumps({"content": message})
+    cmd = [
+        "curl",
+        "-s",
+        "-X", "POST",
+        "-H", "Content-Type: application/json",
+        "-d", payload,
+        "--max-time", "3",
+        webhook_url,
+    ]
+    try:
+        subprocess.Popen(
+            cmd,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception:
+        pass
 
 
 def play_sound(path: str) -> None:
@@ -56,18 +104,39 @@ def read_payload() -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--event", choices=["stop", "prompt"], required=True)
+    parser = argparse.ArgumentParser(description="Antigravity alert lifecycle hook")
+    parser.add_argument("--event", choices=["stop", "prompt"], required=False)
+    parser.add_argument("--test-discord", action="store_true", help="Send test Discord notification")
     args = parser.parse_args()
+
+    if args.test_discord:
+        webhook = get_discord_webhook_url()
+        if not webhook:
+            print("[warn] No Discord webhook configured. Set DISCORD_WEBHOOK_URL or ~/.config/agent/discord.json")
+            sys.exit(1)
+        send_discord_notification("🔔 **Antigravity Alert Hook**: Discord notification test successful.")
+        print("[ok] Dispatched Discord test notification.")
+        return
+
+    if not args.event:
+        parser.print_help()
+        sys.exit(1)
+
     payload = read_payload()
 
     if args.event == "stop":
         sound = stop_sound(payload)
         if sound:
             play_sound(sound)
+            reason = payload.get("terminationReason", "COMPLETED")
+            if reason in ERROR_STOP_REASONS:
+                send_discord_notification(f"❌ **Antigravity Alert**: Stopped with `{reason}`.")
+            else:
+                send_discord_notification("✅ **Antigravity Alert**: Agent finished turn.")
         print(json.dumps({}))
     else:
         play_sound(SOUND_PROMPT)
+        send_discord_notification("❓ **Antigravity Alert**: Agent is waiting for your input.")
         print(json.dumps({"decision": "ask"}))
 
 
