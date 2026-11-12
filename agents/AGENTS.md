@@ -63,6 +63,7 @@ To keep context lean, detailed language standards and workflows live in modular 
 - **Google Cloud Platform & CLI guardrails**: `~/.claude/skills/gcloud/SKILL.md`
 - **Gemini API & Genkit Python agent development**: `~/.claude/skills/gemini-api/SKILL.md` / `~/.claude/skills/developing-genkit-python/SKILL.md`
 - **GCP architecture, Cloud Run & multi-agent solutions**: `~/.claude/skills/google-cloud-solution-build-deploy-agents/SKILL.md` / `~/.claude/skills/cloud-run-basics/SKILL.md`
+- **Cross-session persistent memory & skill synthesis**: `~/.claude/skills/agent-memory/SKILL.md`
 
 ## 6. Specialized Subagents
 When tasks require deep code review, extensive test execution, security auditing, or specialized domain validation, delegate to dedicated subagents (`agents/subagents/` or `invoke_subagent`):
@@ -74,3 +75,8 @@ When tasks require deep code review, extensive test execution, security auditing
 - **`api-contract-auditor`** (`~/.claude/agents/api-contract-auditor.md`): Validates CLI args, MCP tool definitions, SDK function signatures, and schemas for ergonomics, typing, and idempotency.
 - **`docs-auditor`** (`~/.claude/agents/docs-auditor.md`): Verifies technical documentation, guides, and SKILL.md files for runnable command accuracy, link validity, and conciseness.
 - **Subagent Platform Dispatch & Model Tiers**: In Claude Code, subagents under `~/.claude/agents/` are discovered automatically. High-reasoning subagents (`code-reviewer`, `plan-critic`, `ux-design-architect`, `api-contract-auditor`) pin `model: opus`; structured auditors (`security-auditor`, `docs-auditor`) use `model: sonnet`; execution subagents (`test-runner`) use `model: inherit`. If quota or rate limits hit, the parent agent can re-dispatch with `model: inherit`. In Antigravity, invoke custom personas via `TypeName: "self"` (or `define_subagent`) passing the role instructions, using `Model: "pro"` for complex reviews or `Model: "inherit"` / `"flash"` for lighter tasks.
+
+## 7. Cross-Session Persistent Memory & Skill Incubator
+- **Memory Root**: Backed by `~/Projects/agent-memory` (linked to `~/.gemini/memory` and `~/.claude/memory`).
+- **Lifecycle**: Check `core.md` or `projects/<repo>.md` when entering a project; record high-signal learnings with `agent-memory log <category> "<title>" "<note>"`.
+- **Protocol & Skill Synthesis**: Read `~/.claude/skills/agent-memory/SKILL.md` for full memory guidelines, prompt-injection defense, and the "learn loop" workflow for drafting new skills in `~/Projects/agent-memory/skills/`.
