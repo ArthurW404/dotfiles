@@ -57,6 +57,27 @@ acquire_lock() {
     return 0
 }
 
+sync_agent_memory() {
+    local mem_dir="${HOME}/Projects/agent-memory"
+    if [[ ! -d "$mem_dir/.git" ]]; then
+        return 0
+    fi
+    if ! git -C "$mem_dir" remote get-url origin >/dev/null 2>&1; then
+        return 0
+    fi
+    log "[memory] Syncing agent-memory repository..."
+    if [[ "$DRY_RUN" == false ]]; then
+        git -C "$mem_dir" pull --rebase origin main --quiet 2>/dev/null || log "[memory] pull --rebase failed or offline"
+        local unpushed
+        unpushed="$(git -C "$mem_dir" rev-list origin/main..main --count 2>/dev/null || echo 0)"
+        if [[ "$unpushed" -gt 0 ]]; then
+            git -C "$mem_dir" push origin main --quiet 2>/dev/null || log "[memory] push failed or offline"
+        fi
+    else
+        log "[dry-run] Would sync agent-memory (pull --rebase & push)"
+    fi
+}
+
 show_status() {
     echo "=== Dotfiles Sync Status ==="
     echo "Repository:    $DOTFILES_DIR"
@@ -227,3 +248,6 @@ if [[ "$SYNCED" == true && "$DRY_RUN" == false ]]; then
     NEW_REV="$(git -C "$DOTFILES_DIR" rev-parse --short "$DEFAULT_BRANCH" 2>/dev/null || echo "")"
     log "[success] Dotfiles synced to $DEFAULT_BRANCH at $NEW_REV"
 fi
+
+# Synchronize agent-memory repository if configured
+sync_agent_memory

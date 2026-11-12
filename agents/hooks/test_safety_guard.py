@@ -99,16 +99,26 @@ def run_tests() -> None:
         ("git checkout -b feat/explicit-stale master", "deny", "Branching with explicit stale master start point", "feat/test", 2),
     ]
 
+    memory_repo_cases = [
+        ("git commit -m 'record learning'", "allow", "Direct commit to main in agent-memory"),
+        ("git push origin main", "allow", "Direct push to main in agent-memory"),
+        ("git rebase origin/main", "allow", "Rebase on main in agent-memory"),
+        ("git merge origin/main", "allow", "Merge on main in agent-memory"),
+        ("git push --force origin main", "deny", "Force push still blocked in agent-memory"),
+        ("git reset --hard HEAD~1", "deny", "Hard reset still blocked in agent-memory"),
+    ]
+
     cases = [(*case, "feat/test") for case in test_cases]
     cases += [(*case, "master") for case in master_cases]
     cases += feature_branch_cases
 
-    total_tests = len(cases) + len(staleness_cases)
+    total_tests = len(cases) + len(staleness_cases) + len(memory_repo_cases)
     passed = 0
 
     for cmd, expected_decision, desc, branch in cases:
         with mock.patch("safety_guard.get_current_git_branch", return_value=branch), \
              mock.patch("safety_guard.git_ref_exists", return_value=True), \
+             mock.patch("safety_guard.is_memory_repo", return_value=False), \
              mock.patch("safety_guard.get_branch_behind_count", return_value=0):
             decision, reason = evaluate_command(cmd)
         if decision == expected_decision:
@@ -120,7 +130,20 @@ def run_tests() -> None:
     for cmd, expected_decision, desc, branch, behind_count in staleness_cases:
         with mock.patch("safety_guard.get_current_git_branch", return_value=branch), \
              mock.patch("safety_guard.git_ref_exists", return_value=True), \
+             mock.patch("safety_guard.is_memory_repo", return_value=False), \
              mock.patch("safety_guard.get_branch_behind_count", return_value=behind_count):
+            decision, reason = evaluate_command(cmd)
+        if decision == expected_decision:
+            passed += 1
+            print(f"  [PASS] {desc}: '{cmd}' -> {decision}")
+        else:
+            print(f"  [FAIL] {desc}: '{cmd}' -> got {decision}, expected {expected_decision} ({reason})")
+
+    for cmd, expected_decision, desc in memory_repo_cases:
+        with mock.patch("safety_guard.get_current_git_branch", return_value="main"), \
+             mock.patch("safety_guard.git_ref_exists", return_value=True), \
+             mock.patch("safety_guard.is_memory_repo", return_value=True), \
+             mock.patch("safety_guard.get_branch_behind_count", return_value=0):
             decision, reason = evaluate_command(cmd)
         if decision == expected_decision:
             passed += 1
