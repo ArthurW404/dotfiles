@@ -261,6 +261,16 @@ link_item "$DOTFILES_DIR/agents/skills"            "$HOME/.claude/skills"
 link_item "$DOTFILES_DIR/agents/subagents"         "$HOME/.claude/agents"
 link_item "../agents/subagents"                    "$DOTFILES_DIR/.agents/subagents"
 
+# Agent Memory repository & CLI helper
+MEMORY_DIR="$HOME/Projects/agent-memory"
+if [[ -d "$MEMORY_DIR" ]]; then
+    link_item "$MEMORY_DIR"                        "$HOME/.gemini/memory"
+    link_item "$MEMORY_DIR"                        "$HOME/.claude/memory"
+    if [[ -f "$MEMORY_DIR/bin/agent-memory" ]]; then
+        link_item "$MEMORY_DIR/bin/agent-memory"   "$HOME/.local/bin/agent-memory"
+    fi
+fi
+
 # Sync baseline permissions & safety hooks into Antigravity & Claude Code
 if [[ -f "$DOTFILES_DIR/agents/hooks/sync_permissions.py" ]]; then
     echo ""

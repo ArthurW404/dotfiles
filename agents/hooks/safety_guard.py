@@ -69,6 +69,26 @@ def get_current_git_branch(cwd: str | None = None) -> str | None:
     return None
 
 
+def is_memory_repo(cwd: str | None = None) -> bool:
+    """Check if target repository is the agent-memory repository.
+    
+    agent-memory is an explicitly exempted repository where fast-forward atomic commits
+    to main are allowed for cross-session persistent memory logging.
+    """
+    try:
+        cmd = ["git"]
+        if cwd:
+            cmd.extend(["-C", cwd])
+        cmd.extend(["rev-parse", "--show-toplevel"])
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1, check=False)
+        if res.returncode == 0:
+            top = res.stdout.strip().rstrip("/")
+            return top.endswith("/agent-memory") or top.endswith("/.agent-memory")
+    except Exception:
+        pass
+    return False
+
+
 def parse_git_command(cmd: str) -> tuple[str | None, str | None, list[str]]:
     """Parse git subcommand, target working directory, and arguments."""
     tokens = cmd.strip().split()
@@ -273,7 +293,11 @@ def eval_git_command(
             return fresh_decision, fresh_reason
 
     branch = get_current_git_branch(git_dir)
+    in_memory_repo = is_memory_repo(git_dir)
+
     if git_subcmd == "commit" and branch in ("main", "master"):
+        if in_memory_repo:
+            return "allow", "Direct commit to main permitted for agent-memory repository"
         return "deny", f"Direct commits to '{branch}' are prohibited. Work on feature branches."
 
     if git_subcmd == "push":
@@ -283,8 +307,12 @@ def eval_git_command(
             return "force_ask", "'git push --force-with-lease' rewrites remote history. User confirmation required."
         refspecs = push_refspecs(git_args)
         if pushes_to_protected(refspecs):
+            if in_memory_repo:
+                return "allow", "Push to main permitted for agent-memory repository"
             return "deny", "Direct push to 'main'/'master' is prohibited. Work on feature branches."
         if branch in ("main", "master") and pushes_current_branch(refspecs):
+            if in_memory_repo:
+                return "allow", "Push to main permitted for agent-memory repository"
             return "deny", f"Direct push while on '{branch}' branch is prohibited. Work on feature branches."
         return "allow", "Safe git push on feature branch"
 
@@ -301,6 +329,8 @@ def eval_git_command(
 
     if git_subcmd in ("rebase", "merge"):
         if branch in ("main", "master"):
+            if in_memory_repo:
+                return "allow", f"Safe git {git_subcmd} on main in agent-memory repository"
             if git_subcmd == "merge" and is_safe_ff_merge_on_protected(git_args):
                 return "allow", f"Safe fast-forward sync of remote tracking branch on {branch}"
             return "deny", f"Direct {git_subcmd} on '{branch}' branch is prohibited. Work on feature branches."
