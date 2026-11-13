@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Audible & remote alert lifecycle hook for Antigravity.
 
-Plays a macOS system sound and optionally dispatches Discord webhook
-notifications when the agent finishes a turn (Stop) or asks the user
-a question (PreToolUse on ask_question). Never alters agent behavior:
-Stop returns {} and PreToolUse defers to normal permissions.
+Plays a macOS system sound and optionally dispatches Discord notifications
+(via webhook URL or Bot token + channel ID) when the agent stops on error or
+asks the user a question (PreToolUse on ask_question). Never alters agent
+behavior: Stop returns {} and PreToolUse defers to normal permissions.
 """
 
 from __future__ import annotations
@@ -12,6 +12,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -24,45 +25,82 @@ SOUND_ERROR = "/System/Library/Sounds/Basso.aiff"
 SILENT_STOP_REASONS = {"USER_CANCELED"}
 ERROR_STOP_REASONS = {"ERROR", "MAX_TOKEN_BUDGET_EXCEEDED"}
 
+AGENT_DISCORD_CFG = Path.home() / ".config" / "agent" / "discord.json"
+MCP_DISCORD_ENV = Path.home() / ".config" / "mcp" / "discord.env"
 
-def _valid_webhook_url(raw: str | None) -> str | None:
-    """Return sanitized Discord webhook URL or None if invalid/unsafe for curl -K."""
-    if not raw:
+
+def _sanitize_cfg_value(raw: str | None) -> str | None:
+    """Return stripped value or None if empty or unsafe for curl -K config."""
+    if not raw or not isinstance(raw, str):
         return None
-    url = raw.strip()
-    if not url.startswith("https://discord.com/api/webhooks/"):
+    val = raw.strip()
+    if not val or any(ch.isspace() or ch in ('"', "\\") for ch in val):
         return None
-    if any(ch.isspace() or ch in ('"', "\\") for ch in url):
+    return val
+
+
+def _load_json_config(path: Path = AGENT_DISCORD_CFG) -> dict:
+    if not path.is_file():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def _load_bot_token(env_path: Path = MCP_DISCORD_ENV) -> str | None:
+    """Resolve DISCORD_BOT_TOKEN from env or ~/.config/mcp/discord.env."""
+    tok = _sanitize_cfg_value(os.environ.get("DISCORD_BOT_TOKEN"))
+    if tok:
+        return tok
+    if not env_path.is_file():
         return None
-    return url
-
-
-def get_discord_webhook_url() -> str | None:
-    """Retrieve Discord webhook URL from environment or configuration file."""
-    env_url = _valid_webhook_url(os.environ.get("DISCORD_WEBHOOK_URL"))
-    if env_url:
-        return env_url
-
-    cfg_path = Path.home() / ".config" / "agent" / "discord.json"
-    if cfg_path.is_file():
-        try:
-            with open(cfg_path, "r", encoding="utf-8") as f:
-                data = json.load(f)
-                return _valid_webhook_url(data.get("webhook_url"))
-        except Exception:
-            pass
+    try:
+        for line in env_path.read_text(encoding="utf-8").splitlines():
+            stripped = line.strip()
+            if not stripped or stripped.startswith("#") or "=" not in stripped:
+                continue
+            key, _, val = stripped.partition("=")
+            if key.strip().removeprefix("export ").strip() == "DISCORD_BOT_TOKEN":
+                return _sanitize_cfg_value(val.strip().strip("'\""))
+    except OSError:
+        pass
     return None
 
 
-def send_discord_notification(message: str) -> None:
-    """Send Discord notification asynchronously in the background."""
-    webhook_url = get_discord_webhook_url()
-    if not webhook_url:
-        return
+def get_discord_target() -> tuple[str, list[str]] | None:
+    """Resolve Discord target (url, extra curl -K lines) for webhook or bot API."""
+    cfg = _load_json_config()
 
+    for raw_url in (os.environ.get("DISCORD_WEBHOOK_URL"), cfg.get("webhook_url")):
+        url = _sanitize_cfg_value(raw_url)
+        if url and url.startswith("https://discord.com/api/webhooks/"):
+            return url, []
+
+    raw_ch = os.environ.get("DISCORD_ALERT_CHANNEL_ID") or cfg.get("channel_id")
+    ch = raw_ch.strip() if isinstance(raw_ch, str) else ""
+    if re.fullmatch(r"\d{17,20}", ch):
+        tok = _load_bot_token()
+        if tok:
+            url = f"https://discord.com/api/v10/channels/{ch}/messages"
+            headers = [
+                f'header = "Authorization: Bot {tok}"',
+                'user-agent = "DiscordBot (https://github.com/ArthurW404/dotfiles, 1.0)"',
+            ]
+            return url, headers
+    return None
+
+
+def send_discord_notification(message: str, wait: bool = False) -> bool:
+    """Dispatch Discord notification via curl -K stdin (keeps secrets off ps)."""
+    target = get_discord_target()
+    if not target:
+        return False
+
+    url, extra_cfg = target
     payload_json = json.dumps({"content": message})
-    # Pass the secret webhook URL via curl -K stdin so it stays out of process listings (ps).
-    cfg_bytes = f'url = "{webhook_url}"\n'.encode("utf-8")
+    cfg_lines = [f'url = "{url}"', *extra_cfg]
+    cfg_bytes = ("\n".join(cfg_lines) + "\n").encode("utf-8")
     cmd = [
         "curl",
         "-s",
@@ -72,20 +110,27 @@ def send_discord_notification(message: str) -> None:
         "--max-time", "3",
         "-K", "-",
     ]
+    if wait:
+        cmd.extend(["-o", "/dev/null", "-w", "%{http_code}"])
     try:
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
-            stdout=subprocess.DEVNULL,
+            stdout=subprocess.PIPE if wait else subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
-            start_new_session=True,
+            start_new_session=not wait,
         )
+        if wait:
+            out, _ = proc.communicate(input=cfg_bytes, timeout=5)
+            code = out.decode("utf-8", errors="ignore").strip()
+            return proc.returncode == 0 and code.startswith("2")
         if proc.stdin is not None:
             proc.stdin.write(cfg_bytes)
             proc.stdin.flush()
             proc.stdin.close()
+        return True
     except Exception:
-        pass
+        return False
 
 
 def play_sound(path: str) -> None:
@@ -127,13 +172,15 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.test_discord:
-        webhook = get_discord_webhook_url()
-        if not webhook:
-            print("[warn] No Discord webhook configured. Set DISCORD_WEBHOOK_URL or ~/.config/agent/discord.json")
+        if not get_discord_target():
+            print("[warn] No Discord target configured. Set DISCORD_WEBHOOK_URL or ~/.config/agent/discord.json")
             sys.exit(1)
-        send_discord_notification("🔔 **Antigravity Alert Hook**: Discord notification test successful.")
-        print("[ok] Dispatched Discord test notification.")
-        return
+        ok = send_discord_notification(
+            "🔔 **Antigravity Alert Hook**: Discord notification test successful.",
+            wait=True,
+        )
+        print("[ok] Dispatched Discord test notification." if ok else "[fail] Discord request failed.")
+        sys.exit(0 if ok else 1)
 
     if not args.event:
         parser.print_help()
