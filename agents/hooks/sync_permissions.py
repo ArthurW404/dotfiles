@@ -110,13 +110,31 @@ def sync_claude(settings_path: Path, baseline: dict, dry_run: bool = False) -> b
     # Configure PreToolUse safety hook
     hooks = settings.setdefault("hooks", {})
     pre_tool_use = hooks.setdefault("PreToolUse", [])
-    hook_script = str(Path.home() / "Projects" / "dotfiles" / "agents" / "hooks" / "safety_guard.py")
+    hooks_dir = Path.home() / "Projects" / "dotfiles" / "agents" / "hooks"
+    hook_script = str(hooks_dir / "safety_guard.py")
     expected_hook = {
         "matcher": "Bash",
         "command": f"python3 {hook_script}",
     }
     if not any(h.get("command") == expected_hook["command"] for h in pre_tool_use):
         pre_tool_use.append(expected_hook)
+        changed = True
+
+    # Configure PostToolUse session-breadcrumb hook
+    post_tool_use = hooks.setdefault("PostToolUse", [])
+    breadcrumb_cmd = f"python3 {hooks_dir / 'breadcrumb.py'}"
+    has_breadcrumb = any(
+        h.get("command") == breadcrumb_cmd
+        or any(sub.get("command") == breadcrumb_cmd for sub in h.get("hooks", []))
+        for h in post_tool_use
+    )
+    if not has_breadcrumb:
+        post_tool_use.append(
+            {
+                "matcher": "Bash|Edit|Write|MultiEdit",
+                "hooks": [{"type": "command", "command": breadcrumb_cmd, "timeout": 5}],
+            }
+        )
         changed = True
 
     if changed:

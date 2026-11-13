@@ -27,12 +27,15 @@ Ensure that no sensitive data, credentials, authentication tokens, private keys,
    - Hardcoded home directories (e.g., `/home/username/` instead of `~` or `$HOME`).
    - Absolute internal URLs or proprietary endpoints.
 
-3. **Git Hygiene**:
+3. **Skills & Memory Sanitization**:
+   - When changes touch `agents/skills/`, `~/Projects/agent-memory/`, or Markdown instructions, run `python3 ~/Projects/dotfiles/agents/hooks/skill_lint.py` (add `--include-external` if auditing external submodules) to catch prompt injections, hidden Unicode, remote-exec pipes, and missing frontmatter.
+
+4. **Git Hygiene**:
    - Check staged changes: `git diff --cached`
    - Check recent commits: `git log -n 5 -p`
    - Check untracked files against `.gitignore`: `git status -s`
 
-4. **Output Format**:
+5. **Output Format**:
    Deliver a clean verdict back to the parent agent:
    ```markdown
    ### Security Audit: [CLEAN | CRITICAL LEAK FOUND]
