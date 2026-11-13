@@ -304,12 +304,26 @@ if [[ -f "$DOTFILES_DIR/agents/hooks/sync_permissions.py" ]]; then
     fi
 fi
 
-# Verify safety hooks unit tests pass
-if [[ -f "$DOTFILES_DIR/agents/hooks/safety_guard.py" ]]; then
-    echo ""
-    echo "=== Running Safety Guard Verification ==="
-    python3 "$DOTFILES_DIR/agents/hooks/safety_guard.py" --test
-fi
+# Verify agent hook unit tests pass
+echo ""
+echo "=== Running Agent Hook Verification ==="
+for entry in \
+    "safety_guard.py:--test" \
+    "breadcrumb.py:--test" \
+    "skill_lint.py:--test" \
+    "test_notifier.py:"
+do
+    hook_script="$DOTFILES_DIR/agents/hooks/${entry%%:*}"
+    hook_flag="${entry#*:}"
+    [[ -f "$hook_script" ]] || continue
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would run: python3 $hook_script${hook_flag:+ $hook_flag}"
+    elif [[ -n "$hook_flag" ]]; then
+        python3 "$hook_script" "$hook_flag"
+    else
+        python3 "$hook_script"
+    fi
+done
 
 # On macOS, clear gatekeeper provenance on dotfiles to prevent seatbelt sandbox restrictions
 if [[ "$OS_NAME" == "Darwin" ]] && command -v xattr >/dev/null 2>&1; then
