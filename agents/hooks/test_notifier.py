@@ -26,38 +26,55 @@ class TestNotifier(unittest.TestCase):
         payload = {"fullyIdle": False, "terminationReason": "DONE"}
         self.assertIsNone(notifier.stop_sound(payload))
 
-    def test_get_discord_webhook_url_none(self) -> None:
+    def test_get_discord_target_none(self) -> None:
         with mock.patch.dict("os.environ", {}, clear=True), \
-             mock.patch("pathlib.Path.is_file", return_value=False):
-            self.assertIsNone(notifier.get_discord_webhook_url())
+             mock.patch("notifier._load_json_config", return_value={}):
+            self.assertIsNone(notifier.get_discord_target())
 
-    def test_get_discord_webhook_url_from_env(self) -> None:
+    def test_get_discord_target_webhook_env(self) -> None:
         valid_url = "https://discord.com/api/webhooks/12345/abcdef"
-        with mock.patch.dict("os.environ", {"DISCORD_WEBHOOK_URL": valid_url}):
-            self.assertEqual(notifier.get_discord_webhook_url(), valid_url)
+        with mock.patch.dict("os.environ", {"DISCORD_WEBHOOK_URL": valid_url}, clear=True), \
+             mock.patch("notifier._load_json_config", return_value={}):
+            self.assertEqual(notifier.get_discord_target(), (valid_url, []))
 
-    def test_valid_webhook_url_rejects_unsafe_chars(self) -> None:
-        self.assertIsNone(notifier._valid_webhook_url('https://discord.com/api/webhooks/1"2'))
-        self.assertIsNone(notifier._valid_webhook_url("https://discord.com/api/webhooks/1\nurl=bad"))
-        self.assertIsNone(notifier._valid_webhook_url("https://evil.com/webhooks/123"))
+    def test_get_discord_target_bot_channel(self) -> None:
+        ch_id = "1165173417356558400"
+        with mock.patch.dict("os.environ", {}, clear=True), \
+             mock.patch("notifier._load_json_config", return_value={"channel_id": ch_id}), \
+             mock.patch("notifier._load_bot_token", return_value="tok123"):
+            target = notifier.get_discord_target()
+            self.assertIsNotNone(target)
+            url, headers = target
+            self.assertEqual(url, f"https://discord.com/api/v10/channels/{ch_id}/messages")
+            self.assertTrue(any("Authorization: Bot tok123" in h for h in headers))
 
-    def test_send_discord_notification_no_url(self) -> None:
-        with mock.patch("notifier.get_discord_webhook_url", return_value=None), \
+    def test_sanitize_cfg_value_rejects_unsafe_chars(self) -> None:
+        self.assertIsNone(notifier._sanitize_cfg_value('abc"def'))
+        self.assertIsNone(notifier._sanitize_cfg_value("abc\nurl=bad"))
+        self.assertIsNone(notifier._sanitize_cfg_value("abc\\def"))
+        self.assertEqual(notifier._sanitize_cfg_value("  tok123  "), "tok123")
+
+    def test_send_discord_notification_no_target(self) -> None:
+        with mock.patch("notifier.get_discord_target", return_value=None), \
              mock.patch("subprocess.Popen") as mock_popen:
-            notifier.send_discord_notification("test message")
+            self.assertFalse(notifier.send_discord_notification("test message"))
             mock_popen.assert_not_called()
 
-    def test_send_discord_notification_with_url(self) -> None:
-        valid_url = "https://discord.com/api/webhooks/12345/abcdef"
+    def test_send_discord_notification_with_target_hides_secrets_off_ps(self) -> None:
+        valid_url = "https://discord.com/api/v10/channels/1165173417356558400/messages"
+        headers = ['header = "Authorization: Bot secret-tok"']
         mock_proc = mock.MagicMock()
-        with mock.patch("notifier.get_discord_webhook_url", return_value=valid_url), \
+        with mock.patch("notifier.get_discord_target", return_value=(valid_url, headers)), \
              mock.patch("subprocess.Popen", return_value=mock_proc) as mock_popen:
-            notifier.send_discord_notification("test message")
+            self.assertTrue(notifier.send_discord_notification("test message"))
             mock_popen.assert_called_once()
             cmd = mock_popen.call_args[0][0]
             self.assertNotIn(valid_url, cmd)
+            self.assertNotIn("secret-tok", " ".join(cmd))
             self.assertIn("-K", cmd)
-            mock_proc.stdin.write.assert_called_once_with(f'url = "{valid_url}"\n'.encode("utf-8"))
+            written = mock_proc.stdin.write.call_args[0][0].decode("utf-8")
+            self.assertIn(f'url = "{valid_url}"', written)
+            self.assertIn('header = "Authorization: Bot secret-tok"', written)
             mock_proc.stdin.close.assert_called_once()
 
     def test_main_stop_clean_does_not_notify_discord(self) -> None:
