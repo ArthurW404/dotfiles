@@ -25,20 +25,30 @@ SILENT_STOP_REASONS = {"USER_CANCELED"}
 ERROR_STOP_REASONS = {"ERROR", "MAX_TOKEN_BUDGET_EXCEEDED"}
 
 
+def _valid_webhook_url(raw: str | None) -> str | None:
+    """Return sanitized Discord webhook URL or None if invalid/unsafe for curl -K."""
+    if not raw:
+        return None
+    url = raw.strip()
+    if not url.startswith("https://discord.com/api/webhooks/"):
+        return None
+    if any(ch.isspace() or ch in ('"', "\\") for ch in url):
+        return None
+    return url
+
+
 def get_discord_webhook_url() -> str | None:
     """Retrieve Discord webhook URL from environment or configuration file."""
-    url = os.environ.get("DISCORD_WEBHOOK_URL")
-    if url and url.startswith("https://discord.com/api/webhooks/"):
-        return url.strip()
+    env_url = _valid_webhook_url(os.environ.get("DISCORD_WEBHOOK_URL"))
+    if env_url:
+        return env_url
 
     cfg_path = Path.home() / ".config" / "agent" / "discord.json"
     if cfg_path.is_file():
         try:
             with open(cfg_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                web_url = data.get("webhook_url", "").strip()
-                if web_url.startswith("https://discord.com/api/webhooks/"):
-                    return web_url
+                return _valid_webhook_url(data.get("webhook_url"))
         except Exception:
             pass
     return None
@@ -50,15 +60,17 @@ def send_discord_notification(message: str) -> None:
     if not webhook_url:
         return
 
-    payload_bytes = json.dumps({"content": message}).encode("utf-8")
+    payload_json = json.dumps({"content": message})
+    # Pass the secret webhook URL via curl -K stdin so it stays out of process listings (ps).
+    cfg_bytes = f'url = "{webhook_url}"\n'.encode("utf-8")
     cmd = [
         "curl",
         "-s",
         "-X", "POST",
         "-H", "Content-Type: application/json",
-        "-d", "@-",
+        "-d", payload_json,
         "--max-time", "3",
-        webhook_url,
+        "-K", "-",
     ]
     try:
         proc = subprocess.Popen(
@@ -68,7 +80,10 @@ def send_discord_notification(message: str) -> None:
             stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
-        proc.communicate(input=payload_bytes, timeout=3)
+        if proc.stdin is not None:
+            proc.stdin.write(cfg_bytes)
+            proc.stdin.flush()
+            proc.stdin.close()
     except Exception:
         pass
 
