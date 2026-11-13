@@ -263,6 +263,19 @@ link_item "../agents/subagents"                    "$DOTFILES_DIR/.agents/subage
 
 # Agent Memory repository & CLI helper
 MEMORY_DIR="$HOME/Projects/agent-memory"
+MEMORY_REPO="${AGENT_MEMORY_REPO:-git@github.com:ArthurW404/agent-memory.git}"
+if [[ ! -d "$MEMORY_DIR" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would clone $MEMORY_REPO -> $MEMORY_DIR"
+    else
+        echo "[clone] Cloning $MEMORY_REPO -> $MEMORY_DIR..."
+        mkdir -p "$(dirname "$MEMORY_DIR")"
+        if ! GIT_TERMINAL_PROMPT=0 git clone "$MEMORY_REPO" "$MEMORY_DIR" 2>/dev/null; then
+            echo "[skip] Could not clone $MEMORY_REPO (offline or unauthorized); skipping memory links"
+        fi
+    fi
+fi
+
 if [[ -d "$MEMORY_DIR" ]]; then
     link_item "$MEMORY_DIR"                        "$HOME/.gemini/memory"
     link_item "$MEMORY_DIR"                        "$HOME/.claude/memory"
