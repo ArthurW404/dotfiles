@@ -49,7 +49,7 @@ install_system_packages() {
     echo "=== Installing Core CLI Packages ($OS_NAME) ==="
     if [[ "$OS_NAME" == "Darwin" ]]; then
         if command -v brew >/dev/null 2>&1; then
-            local cmd="brew install fish neovim tmux ripgrep fd jq uv fzf zoxide git-delta starship eza gh"
+            local cmd="brew install fish neovim tmux ripgrep fd jq uv fzf zoxide git-delta starship eza gh ast-grep"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run: $cmd"
             else
@@ -68,7 +68,7 @@ install_system_packages() {
                 sudo apt-get install -y fish zsh vim neovim tmux git git-delta curl ripgrep fd-find jq fzf zoxide eza gh zsh-autosuggestions zsh-syntax-highlighting
             fi
         elif command -v pacman >/dev/null 2>&1; then
-            local cmd="sudo pacman -S --needed --noconfirm fish zsh vim neovim tmux git git-delta curl ripgrep fd jq uv fzf zoxide eza starship github-cli zsh-autosuggestions zsh-syntax-highlighting"
+            local cmd="sudo pacman -S --needed --noconfirm fish zsh vim neovim tmux git git-delta curl ripgrep fd jq uv fzf zoxide eza starship github-cli ast-grep zsh-autosuggestions zsh-syntax-highlighting"
             if [[ "$DRY_RUN" == true ]]; then
                 echo "[dry-run] Would run (Arch pacman): $cmd"
             else
@@ -101,6 +101,15 @@ install_system_packages() {
             else
                 mkdir -p "$HOME/.local/bin"
                 curl -sS https://starship.rs/install.sh | sh -s -- -y -b "$HOME/.local/bin"
+            fi
+        fi
+
+        # Install ast-grep via uv on Linux distros without native packaging (Debian/Fedora)
+        if ! command -v ast-grep >/dev/null 2>&1 && command -v uv >/dev/null 2>&1; then
+            if [[ "$DRY_RUN" == true ]]; then
+                echo "[dry-run] Would run: uv tool install ast-grep-cli"
+            else
+                uv tool install ast-grep-cli
             fi
         fi
     fi

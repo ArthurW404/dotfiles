@@ -55,6 +55,7 @@
     "command(readlink)",
     "command(realpath)",
     "command(rg)",
+    "command(ast-grep)",
     "command(sort)",
     "command(stat)",
     "command(sw_vers)",
