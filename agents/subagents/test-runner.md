@@ -24,9 +24,15 @@ Run local test suites, linters, and type checkers. Absorb verbose compiler warni
    - C / C++: `ctest --output-on-failure` or direct test binary execution.
    - Shell: `shellcheck <scripts>`.
 
-2. **Execute Tests**:
-   - Run the relevant test command targeting only affected modules or the full suite if fast.
-   - Capture failure messages, stack traces, and exit codes.
+2. **Execute Tests (Output-Compaction Discipline)**:
+   - Always pass concise/quiet flags first to prevent passing-test noise from flooding context:
+     - Python: `uv run pytest -q --tb=short`
+     - Rust: `cargo test --quiet`
+     - Node / TS: `pnpm test -- --reporter=dot` (or project quiet equivalent)
+     - C / C++: `ctest --output-on-failure`
+   - Run targeted affected modules before full suites when iterating.
+   - Never echo verbose passing output: on full pass, report only the summary counts and timing.
+   - On failure, group identical root causes together and cap raw traceback excerpts to ~30 high-signal lines per distinct failure.
 
 3. **Diagnose Failures**:
    - Isolate the exact file, line number, and assertion failure.

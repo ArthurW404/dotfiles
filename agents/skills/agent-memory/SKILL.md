@@ -68,7 +68,8 @@ When an agent resolves an intricate, reusable multi-step workflow (e.g., deployi
    - Keep instructions high-signal and execution-ready.
 
 3. **Graduation to Dotfiles**:
-   - Once a drafted skill is tested and proven across sessions, graduate it to `~/Projects/dotfiles/agents/skills/<skill-name>/SKILL.md` via a standard feature branch and PR.
+   - Run `python3 ~/Projects/dotfiles/agents/hooks/skill_lint.py ~/Projects/agent-memory/skills/<skill-name>/SKILL.md` to verify frontmatter and rule out injection/secret patterns.
+   - Once tested and proven across sessions, graduate it to `~/Projects/dotfiles/agents/skills/<skill-name>/SKILL.md` via a standard feature branch and PR.
 
 ---
 
