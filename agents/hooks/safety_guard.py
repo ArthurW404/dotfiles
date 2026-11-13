@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from pathlib import Path
 
 PUSH_VALUE_FLAGS = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
 
@@ -70,7 +71,7 @@ def get_current_git_branch(cwd: str | None = None) -> str | None:
 
 
 def is_memory_repo(cwd: str | None = None) -> bool:
-    """Check if target repository is the agent-memory repository.
+    """Check if target repository is specifically ~/Projects/agent-memory.
     
     agent-memory is an explicitly exempted repository where fast-forward atomic commits
     to main are allowed for cross-session persistent memory logging.
@@ -82,8 +83,9 @@ def is_memory_repo(cwd: str | None = None) -> bool:
         cmd.extend(["rev-parse", "--show-toplevel"])
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=1, check=False)
         if res.returncode == 0:
-            top = res.stdout.strip().rstrip("/")
-            return top.endswith("/agent-memory") or top.endswith("/.agent-memory")
+            top_path = Path(res.stdout.strip()).resolve()
+            expected_path = (Path.home() / "Projects" / "agent-memory").resolve()
+            return top_path == expected_path
     except Exception:
         pass
     return False

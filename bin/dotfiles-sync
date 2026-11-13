@@ -67,7 +67,7 @@ sync_agent_memory() {
     fi
     log "[memory] Syncing agent-memory repository..."
     if [[ "$DRY_RUN" == false ]]; then
-        git -C "$mem_dir" pull --rebase origin main --quiet 2>/dev/null || log "[memory] pull --rebase failed or offline"
+        git -C "$mem_dir" pull --rebase --autostash origin main --quiet 2>/dev/null || log "[memory] pull --rebase failed or offline"
         local unpushed
         unpushed="$(git -C "$mem_dir" rev-list origin/main..main --count 2>/dev/null || echo 0)"
         if [[ "$unpushed" -gt 0 ]]; then

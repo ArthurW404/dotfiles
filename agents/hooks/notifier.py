@@ -50,23 +50,25 @@ def send_discord_notification(message: str) -> None:
     if not webhook_url:
         return
 
-    payload = json.dumps({"content": message})
+    payload_bytes = json.dumps({"content": message}).encode("utf-8")
     cmd = [
         "curl",
         "-s",
         "-X", "POST",
         "-H", "Content-Type: application/json",
-        "-d", payload,
+        "-d", "@-",
         "--max-time", "3",
         webhook_url,
     ]
     try:
-        subprocess.Popen(
+        proc = subprocess.Popen(
             cmd,
+            stdin=subprocess.PIPE,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
             start_new_session=True,
         )
+        proc.communicate(input=payload_bytes, timeout=3)
     except Exception:
         pass
 
@@ -130,9 +132,7 @@ def main() -> None:
             play_sound(sound)
             reason = payload.get("terminationReason", "COMPLETED")
             if reason in ERROR_STOP_REASONS:
-                send_discord_notification(f"❌ **Antigravity Alert**: Stopped with `{reason}`.")
-            else:
-                send_discord_notification("✅ **Antigravity Alert**: Agent finished turn.")
+                send_discord_notification(f"❌ **Antigravity Alert**: Stopped with error (`{reason}`).")
         print(json.dumps({}))
     else:
         play_sound(SOUND_PROMPT)
