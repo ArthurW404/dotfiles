@@ -90,6 +90,7 @@
     "command(cargo check)",
     "command(cargo test)",
     "command(cargo clippy)",
+    "command(cargo mutants)",
     "command(pnpm test)",
     "command(pnpm lint)",
     "command(npm test)",
