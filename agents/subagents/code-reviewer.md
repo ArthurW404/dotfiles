@@ -27,7 +27,7 @@ Analyze the current branch or staged git diff against the repository's coding st
    - **Surgical Diffs**: Are there any accidental formatting changes, drive-by renames, or unrelated edits?
    - **Architectural Hygiene**: Are interfaces segregated (no dummy stubs)? Is there any unrequested backwards-compatibility shims? Are methods `< 40 lines`?
    - **Security**: Are there any command injection risks, unsanitized inputs, or hardcoded secrets?
-   - **Verification**: Are there accompanying tests or dry-run verifications confirming this change works?
+   - **Verification & Test Effectiveness**: Are there accompanying tests or dry-run verifications? Flag tautological tests (asserting only on mock calls or `is not None`), over-mocking of internal methods, missing property-based invariant tests (`hypothesis`, `proptest`, `fast-check`) on parsers/math/state logic, or bug-fix tests not verified via sabotage/mutation.
 
 3. **Output Format**:
    Deliver a concise Markdown report:

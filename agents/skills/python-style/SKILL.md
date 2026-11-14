@@ -92,3 +92,16 @@ Always verify Python code using `uv` and `ruff`:
    ```sh
    uv run pytest -v
    ```
+5. **Property-Based & Invariant Testing (`hypothesis`)**:
+   - Prefer `hypothesis` (`@given(...)`) over hardcoded example tables for parsers, serializers, mathematical/financial routines, and state machines:
+     - **Round-Trip**: `decode(encode(x)) == x`
+     - **Idempotency**: `normalize(normalize(x)) == normalize(x)`
+     - **Oracle / Differential**: `fast_impl(x) == naive_reference(x)`
+     - **Structural / Conservation Invariants**: e.g. portfolio weights sum to `1.0`, sort preserves multiset elements, bounds hold across `st.floats(allow_nan=False, allow_infinity=False)`.
+   - Exercise real lightweight collaborators (`tmp_path`, in-memory `sqlite3`) rather than patching internal functions with `unittest.mock`. Never write tests whose sole assertion is `mock_fn.assert_called_once_with(...)`.
+6. **Test Effectiveness & Mutation Verification**:
+   - **Sabotage Check (Red-Green-Revert)**: For bug fixes and boundary conditions (`<` vs `<=`), verify the test fails when the production fix is stashed or mutated before marking complete.
+   - **Mutation Testing (`mutmut`)**: Audit assertion coverage on critical modules inside the project `.venv`:
+     ```sh
+     uv run --with mutmut mutmut run "<module>*"
+     ```
