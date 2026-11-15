@@ -36,6 +36,7 @@ Follow these engineering standards whenever branching, staging, committing, or p
     git fetch origin
     git worktree add <path> -b <type>/<short-description> origin/main  # or origin/master
     ```
+    Never check out `main` or `master` inside a linked worktree (detach at `origin/main` if needed) so the primary repository can always check out its default branch. Merged worktrees untouched for 24h are pruned hourly by `dotfiles-sync` (`worktree-cleanup`), or run `worktree-cleanup --hours 0` after merging.
 - **Standard Branch Types**:
   - `feat/` — New user-facing feature or enhancement
   - `fix/` — Bug fix

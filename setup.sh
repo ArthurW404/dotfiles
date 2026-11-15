@@ -189,6 +189,7 @@ fi
 link_item "$DOTFILES_DIR/.gitconfig"               "$HOME/.gitconfig"
 link_item "$DOTFILES_DIR/.config/git/ignore"       "$HOME/.config/git/ignore"
 link_item "$DOTFILES_DIR/bin/dotfiles-sync"        "$HOME/.local/bin/dotfiles-sync"
+link_item "$DOTFILES_DIR/bin/worktree-cleanup"     "$HOME/.local/bin/worktree-cleanup"
 
 # On Debian/Ubuntu, apt installs `fd-find` as `fdfind` and `bat` as `batcat`.
 # Link them into ~/.local/bin so non-interactive agent subshells can invoke `fd` and `bat` directly.
@@ -324,6 +325,13 @@ do
         python3 "$hook_script"
     fi
 done
+if [[ -f "$DOTFILES_DIR/bin/test_worktree_cleanup.py" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would run: python3 $DOTFILES_DIR/bin/test_worktree_cleanup.py"
+    else
+        python3 "$DOTFILES_DIR/bin/test_worktree_cleanup.py"
+    fi
+fi
 
 # On macOS, clear gatekeeper provenance on dotfiles to prevent seatbelt sandbox restrictions
 if [[ "$OS_NAME" == "Darwin" ]] && command -v xattr >/dev/null 2>&1; then

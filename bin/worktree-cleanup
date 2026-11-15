@@ -1,0 +1,299 @@
+#!/usr/bin/env python3
+"""Safely remove merged and inactive git worktrees under agent worktree roots.
+
+Removes a linked worktree only when all safety checks pass:
+1. It is a linked git worktree (never a primary repository clone or current CWD).
+2. It is not locked and has a completely clean working tree.
+3. All commits are reachable/merged into origin/main or origin/master
+   (ancestry, git cherry equivalence, or merged GitHub PR via `gh`).
+4. Its latest activity (worktree/git metadata mtime or commit time) is older
+   than the configured inactivity grace period (default: 24 hours).
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import shutil
+import subprocess
+import time
+from dataclasses import dataclass
+from pathlib import Path
+
+DEFAULT_ROOTS = (
+    Path.home() / ".gemini" / "antigravity" / "worktrees",
+    Path.home() / ".claude" / "worktrees",
+)
+ENV_TEMPLATES = frozenset({".env.example", ".env.sample", ".env.template", ".env.dist"})
+FETCH_FRESH_SECONDS = 900
+
+
+@dataclass(frozen=True)
+class WorktreeOutcome:
+    path: Path
+    status: str  # "removed", "would_remove", "skipped", "error"
+    reason: str
+
+
+def _run_git(repo: Path, args: list[str], timeout: int = 15) -> subprocess.CompletedProcess[str]:
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env.setdefault("GIT_SSH_COMMAND", "ssh -o BatchMode=yes -o ConnectTimeout=10")
+    cmd = ["git", "-C", str(repo), *args]
+    try:
+        return subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, env=env, check=False)
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        return subprocess.CompletedProcess(cmd, 124, stdout="", stderr=str(exc))
+
+
+def _discover_worktrees(roots: list[Path], repos: list[Path]) -> list[Path]:
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for repo_dir in sorted(root.iterdir()):
+            if not repo_dir.is_dir():
+                continue
+            for wt_dir in sorted(repo_dir.iterdir()):
+                if wt_dir.is_dir() and (wt_dir / ".git").exists():
+                    resolved = wt_dir.resolve()
+                    if resolved not in seen:
+                        seen.add(resolved)
+                        found.append(wt_dir)
+    for repo in repos:
+        for wt_path in _list_linked_worktrees(repo):
+            resolved = wt_path.resolve()
+            if resolved not in seen:
+                seen.add(resolved)
+                found.append(wt_path)
+    return found
+
+
+def _list_linked_worktrees(repo: Path) -> list[Path]:
+    proc = _run_git(repo, ["worktree", "list", "--porcelain"])
+    if proc.returncode != 0:
+        return []
+    paths: list[Path] = []
+    for line in proc.stdout.splitlines():
+        if line.startswith("worktree "):
+            paths.append(Path(line.removeprefix("worktree ").strip()))
+    return paths[1:] if len(paths) > 1 else []
+
+
+def _resolve_repo_info(wt_path: Path) -> tuple[Path, Path] | None:
+    """Return (primary_repo, git_dir) for a linked worktree, else None."""
+    proc = _run_git(wt_path, ["rev-parse", "--git-dir", "--git-common-dir"])
+    if proc.returncode != 0:
+        return None
+    lines = proc.stdout.strip().splitlines()
+    if len(lines) != 2:
+        return None
+    raw_git, raw_common = Path(lines[0]), Path(lines[1])
+    git_dir = (raw_git if raw_git.is_absolute() else (wt_path / raw_git)).resolve()
+    common_dir = (raw_common if raw_common.is_absolute() else (wt_path / raw_common)).resolve()
+    if git_dir == common_dir:
+        return None
+    primary = common_dir.parent if common_dir.name == ".git" else common_dir
+    return primary, git_dir
+
+
+def _locked_worktrees(primary: Path) -> set[Path]:
+    proc = _run_git(primary, ["worktree", "list", "--porcelain"])
+    if proc.returncode != 0:
+        return set()
+    locked: set[Path] = set()
+    current: Path | None = None
+    for line in proc.stdout.splitlines():
+        if line.startswith("worktree "):
+            current = Path(line.removeprefix("worktree ").strip()).resolve()
+        elif line.startswith("locked") and current is not None:
+            locked.add(current)
+    return locked
+
+
+def _maybe_fetch_origin(primary: Path, fetched: set[Path], no_fetch: bool) -> None:
+    if no_fetch or primary in fetched:
+        return
+    fetched.add(primary)
+    fetch_head = primary / ".git" / "FETCH_HEAD"
+    if fetch_head.is_file() and (time.time() - fetch_head.stat().st_mtime) < FETCH_FRESH_SECONDS:
+        return
+    _run_git(primary, ["fetch", "origin", "--prune", "--quiet"], timeout=20)
+
+
+def _default_remote_ref(primary: Path) -> str | None:
+    for ref in ("origin/main", "origin/master"):
+        if _run_git(primary, ["rev-parse", "--verify", "--quiet", ref]).returncode == 0:
+            return ref
+    return None
+
+
+def _latest_activity_epoch(wt_path: Path, git_dir: Path) -> float:
+    mtimes: list[float] = []
+    for candidate in (
+        wt_path,
+        git_dir / "HEAD",
+        git_dir / "index",
+        git_dir / "logs" / "HEAD",
+    ):
+        if candidate.exists():
+            mtimes.append(candidate.stat().st_mtime)
+    proc = _run_git(wt_path, ["log", "-1", "--format=%ct"])
+    if proc.returncode == 0 and proc.stdout.strip().isdigit():
+        mtimes.append(float(proc.stdout.strip()))
+    return max(mtimes) if mtimes else time.time()
+
+
+def _is_gh_pr_merged(primary: Path, branch: str, head_sha: str) -> bool:
+    if not shutil.which("gh"):
+        return False
+    cmd = ["gh", "pr", "list", "--head", branch, "--state", "merged", "--json", "headRefOid", "--limit", "5"]
+    try:
+        proc = subprocess.run(cmd, cwd=str(primary), capture_output=True, text=True, timeout=10, check=False)
+        if proc.returncode != 0:
+            return False
+        data = json.loads(proc.stdout or "[]")
+        return isinstance(data, list) and any(item.get("headRefOid") == head_sha for item in data)
+    except (subprocess.SubprocessError, json.JSONDecodeError, OSError):
+        return False
+
+
+def _is_merged(primary: Path, wt_path: Path, default_ref: str, use_gh: bool) -> bool:
+    head_proc = _run_git(wt_path, ["rev-parse", "HEAD"])
+    if head_proc.returncode != 0:
+        return False
+    head_sha = head_proc.stdout.strip()
+    if _run_git(primary, ["merge-base", "--is-ancestor", head_sha, default_ref]).returncode == 0:
+        return True
+    cherry_proc = _run_git(primary, ["cherry", default_ref, head_sha])
+    if cherry_proc.returncode == 0:
+        unmerged = [ln for ln in cherry_proc.stdout.splitlines() if ln.startswith("+")]
+        if not unmerged:
+            return True
+    if not use_gh:
+        return False
+    branch_proc = _run_git(wt_path, ["symbolic-ref", "--short", "-q", "HEAD"])
+    branch = branch_proc.stdout.strip()
+    if branch and branch not in ("main", "master"):
+        return _is_gh_pr_merged(primary, branch, head_sha)
+    return False
+
+
+def _has_unbacked_env_files(wt_path: Path, primary: Path) -> bool:
+    try:
+        for candidate in wt_path.glob(".env*"):
+            if candidate.is_symlink() or not candidate.is_file() or candidate.name in ENV_TEMPLATES:
+                continue
+            peer = primary / candidate.name
+            if not peer.is_file() or candidate.read_bytes() != peer.read_bytes():
+                return True
+    except OSError:
+        return True
+    return False
+
+
+def _remove_worktree(primary: Path, wt_path: Path, default_ref: str, managed_roots: set[Path]) -> WorktreeOutcome:
+    rm_proc = _run_git(primary, ["worktree", "remove", str(wt_path)], timeout=60)
+    if rm_proc.returncode != 0:
+        err = (rm_proc.stderr or rm_proc.stdout).strip() or "git worktree remove failed"
+        return WorktreeOutcome(wt_path, "error", err)
+    _run_git(primary, ["worktree", "prune"])
+    if wt_path.parent.parent.resolve() in managed_roots:
+        _prune_empty_parent(wt_path.parent)
+    return WorktreeOutcome(wt_path, "removed", f"clean & merged into {default_ref}")
+
+
+def evaluate_and_clean(
+    wt_path: Path,
+    *,
+    cwd: Path,
+    fetched: set[Path],
+    min_age_hours: float,
+    dry_run: bool,
+    no_fetch: bool,
+    use_gh: bool,
+    managed_roots: set[Path] | None = None,
+) -> WorktreeOutcome:
+    resolved_wt = wt_path.resolve()
+    if cwd == resolved_wt or cwd.is_relative_to(resolved_wt):
+        return WorktreeOutcome(wt_path, "skipped", "active cwd")
+    info = _resolve_repo_info(wt_path)
+    if info is None:
+        return WorktreeOutcome(wt_path, "skipped", "not a linked worktree")
+    primary, git_dir = info
+    if resolved_wt in _locked_worktrees(primary):
+        return WorktreeOutcome(wt_path, "skipped", "locked")
+    dirty_proc = _run_git(wt_path, ["--no-optional-locks", "status", "--porcelain"])
+    if dirty_proc.returncode != 0:
+        return WorktreeOutcome(wt_path, "error", "git status failed")
+    if dirty_proc.stdout.strip():
+        return WorktreeOutcome(wt_path, "skipped", "dirty working tree")
+    if _has_unbacked_env_files(wt_path, primary):
+        return WorktreeOutcome(wt_path, "skipped", "unbacked .env file")
+    if min_age_hours > 0:
+        age_hours = (time.time() - _latest_activity_epoch(wt_path, git_dir)) / 3600.0
+        if age_hours < min_age_hours:
+            return WorktreeOutcome(wt_path, "skipped", f"active recently ({age_hours:.1f}h < {min_age_hours:g}h)")
+    _maybe_fetch_origin(primary, fetched, no_fetch)
+    default_ref = _default_remote_ref(primary)
+    if default_ref is None:
+        return WorktreeOutcome(wt_path, "skipped", "no origin/main or origin/master")
+    if not _is_merged(primary, wt_path, default_ref, use_gh=use_gh):
+        return WorktreeOutcome(wt_path, "skipped", f"unmerged vs {default_ref}")
+    if dry_run:
+        return WorktreeOutcome(wt_path, "would_remove", f"clean & merged into {default_ref}")
+    roots_set = managed_roots if managed_roots is not None else set()
+    return _remove_worktree(primary, wt_path, default_ref, roots_set)
+
+
+def _prune_empty_parent(parent: Path) -> None:
+    try:
+        if parent.is_dir() and not any(parent.iterdir()):
+            parent.rmdir()
+    except OSError:
+        pass
+
+
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Safely prune merged & inactive git worktrees.")
+    parser.add_argument("-n", "--dry-run", action="store_true", help="Preview removals without deleting anything.")
+    parser.add_argument("--hours", type=float, default=24.0, help="Inactivity grace period in hours (default: 24).")
+    parser.add_argument("--no-fetch", action="store_true", help="Skip fetching origin before checking merge status.")
+    parser.add_argument("--no-gh", action="store_true", help="Skip gh CLI squash-merge fallback checks.")
+    parser.add_argument("--root", type=Path, action="append", default=[], help="Additional 2-level worktree root.")
+    parser.add_argument("--repo", type=Path, action="append", default=[], help="Additional git repo to scan.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Only print removed/would_remove/error entries.")
+    return parser.parse_args(argv)
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = parse_args(argv)
+    roots = list(args.root) if args.root else list(DEFAULT_ROOTS)
+    managed_roots = {r.resolve() for r in roots}
+    worktrees = _discover_worktrees(roots, args.repo)
+    cwd = Path.cwd().resolve()
+    fetched: set[Path] = set()
+    had_error = False
+
+    for wt in worktrees:
+        outcome = evaluate_and_clean(
+            wt,
+            cwd=cwd,
+            fetched=fetched,
+            min_age_hours=args.hours,
+            dry_run=args.dry_run,
+            no_fetch=args.no_fetch,
+            use_gh=not args.no_gh,
+            managed_roots=managed_roots,
+        )
+        if outcome.status == "error":
+            had_error = True
+        if not args.quiet or outcome.status != "skipped":
+            print(f"[{outcome.status}] {outcome.path} ({outcome.reason})")
+    return 1 if had_error else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

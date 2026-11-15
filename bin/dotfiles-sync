@@ -78,6 +78,22 @@ sync_agent_memory() {
     fi
 }
 
+cleanup_agent_worktrees() {
+    local helper="$DOTFILES_DIR/bin/worktree-cleanup"
+    [[ -f "$helper" ]] || return 0
+    local flags=(--quiet)
+    if [[ "$DRY_RUN" == true ]]; then
+        flags+=(--dry-run)
+    fi
+    local output
+    output="$(python3 "$helper" "${flags[@]}" 2>&1 || true)"
+    if [[ -n "$output" ]]; then
+        while IFS= read -r line; do
+            [[ -n "$line" ]] && log "[worktrees] $line"
+        done <<< "$output"
+    fi
+}
+
 show_status() {
     echo "=== Dotfiles Sync Status ==="
     echo "Repository:    $DOTFILES_DIR"
@@ -251,3 +267,6 @@ fi
 
 # Synchronize agent-memory repository if configured
 sync_agent_memory
+
+# Prune clean, merged & inactive agent git worktrees (>= 24h untouched)
+cleanup_agent_worktrees
