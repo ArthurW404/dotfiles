@@ -68,6 +68,7 @@
     "command(whereis)",
     "command(which)",
     "command(whoami)",
+    "command(worktree-cleanup)",
     "command(xattr)",
     "command(jq)",
     "command(fd)",
