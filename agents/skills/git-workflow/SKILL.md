@@ -16,7 +16,7 @@ Follow these engineering standards whenever branching, staging, committing, or p
   Before starting work in a new session, creating a feature branch, or adding a worktree:
   1. Always run `git fetch origin`.
   2. Verify base branch freshness against latest `origin/main` (or `origin/master`).
-  3. If your work depends on another unmerged branch or PR, explicitly verify whether to base your branch on that feature branch (stacked PR) or wait for it to merge, avoiding building on stale code.
+  3. Every PR must target `main` or `master` directly (no stacked PR chains onto unmerged feature branches unless explicitly requested). If work depends on another unmerged PR, wait for it to merge into `main`/`master` before branching the follow-up slice, keep slices independent against `main`/`master`, or combine tightly coupled small changes into one cohesive PR.
 - **Branch & Worktree Creation**:
   Always create branches or worktrees directly from the freshly fetched remote tracking branch (`origin/main` or `origin/master`) or an up-to-date local base. In Antigravity sandboxed execution, remote Git commands (`fetch`, `pull`, `push`) touch the network and must run with `BypassSandbox: true`.
   - **Standard In-Tree Branch (Direct from Remote Tracking Ref — Recommended)**:
