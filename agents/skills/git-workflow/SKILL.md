@@ -36,7 +36,9 @@ Follow these engineering standards whenever branching, staging, committing, or p
     git fetch origin
     git worktree add <path> -b <type>/<short-description> origin/main  # or origin/master
     ```
-    Never check out `main` or `master` inside a linked worktree (detach at `origin/main` if needed) so the primary repository can always check out its default branch. Merged worktrees untouched for 24h are pruned hourly by `dotfiles-sync` (`worktree-cleanup`), or run `worktree-cleanup --hours 0` after merging.
+    Never check out `main` or `master` inside a linked worktree (detach at `origin/main` if needed) so the primary repository can always check out its default branch. Never create ad-hoc worktrees in `/tmp` (Antigravity denies `read_file` outside the workspace). Merged worktrees untouched for 24h are pruned hourly by `dotfiles-sync` (`worktree-cleanup`), or run `worktree-cleanup --hours 0` after merging.
+- **PR / Issue Body Safety (`--body-file`)**:
+  - When running `gh pr create`, `gh pr comment`, or `gh pr edit` with multi-line markdown or code backticks, write the body to a scratch file and pass `--body-file <path>`. Passing backticks inside double-quoted `--body "..."` triggers zsh command substitution and disables command prefix auto-approval.
 - **Standard Branch Types**:
   - `feat/` — New user-facing feature or enhancement
   - `fix/` — Bug fix

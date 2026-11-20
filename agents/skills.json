@@ -5,9 +5,6 @@
     },
     {
       "path": "~/Projects/agent-memory/skills"
-    },
-    {
-      "path": "~/Projects/dotfiles/external/anthropics-skills/skills"
     }
   ]
 }
