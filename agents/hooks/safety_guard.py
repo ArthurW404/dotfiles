@@ -55,18 +55,17 @@ BRANCH_NON_CREATION_PREFIXES = (
 
 
 def get_current_git_branch(cwd: str | None = None) -> str | None:
-    """Retrieve current Git branch name if inside a git repository."""
-    try:
-        cmd = ["git"]
-        if cwd:
-            cmd.extend(["-C", cwd])
-        cmd.extend(["rev-parse", "--abbrev-ref", "HEAD"])
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=1, check=False)
-        if res.returncode == 0:
-            branch = res.stdout.strip()
-            return branch if branch else None
-    except Exception:
-        pass
+    """Retrieve current Git branch name if inside a git repository (including unborn branches)."""
+    base = ["git", "-C", cwd] if cwd else ["git"]
+    for args in (["symbolic-ref", "--short", "HEAD"], ["rev-parse", "--abbrev-ref", "HEAD"]):
+        try:
+            res = subprocess.run([*base, *args], capture_output=True, text=True, timeout=1, check=False)
+            if res.returncode == 0:
+                branch = res.stdout.strip()
+                if branch:
+                    return branch
+        except Exception:
+            pass
     return None
 
 
@@ -330,6 +329,8 @@ def eval_git_command(
         return "force_ask", "Force deleting a git branch ('git branch -D'). User confirmation required."
 
     if git_subcmd in ("rebase", "merge"):
+        if any(arg in ("--abort", "--quit") for arg in git_args):
+            return "allow", f"Safe abort of in-progress git {git_subcmd}"
         if branch in ("main", "master"):
             if in_memory_repo:
                 return "allow", f"Safe git {git_subcmd} on main in agent-memory repository"
@@ -367,7 +368,28 @@ def eval_system_command(cmd: str) -> tuple[str, str]:
     return "allow", "Command passed safety checks"
 
 
-def evaluate_command(command: str) -> tuple[str, str]:
+def _resolve_git_dir(git_dir: str | None, cwd: str | None) -> str | None:
+    """Resolve effective git working directory from explicit -C and hook cwd."""
+    if git_dir:
+        path = Path(git_dir).expanduser()
+        if not path.is_absolute() and cwd:
+            return str(Path(cwd).expanduser() / path)
+        return str(path)
+    return cwd
+
+
+def _extract_hook_cwd(payload: dict) -> str | None:
+    """Extract agent working directory from Antigravity or Claude Code hook payload."""
+    raw_cwd = payload.get("cwd")
+    if isinstance(raw_cwd, str) and raw_cwd.strip():
+        return raw_cwd.strip()
+    workspaces = payload.get("workspacePaths")
+    if isinstance(workspaces, list) and workspaces and isinstance(workspaces[0], str) and workspaces[0].strip():
+        return workspaces[0].strip()
+    return None
+
+
+def evaluate_command(command: str, cwd: str | None = None) -> tuple[str, str]:
     """Evaluate command and return (decision, reason)."""
     cmd = command.strip()
     if not cmd:
@@ -375,7 +397,8 @@ def evaluate_command(command: str) -> tuple[str, str]:
 
     git_subcmd, git_dir, git_args = parse_git_command(cmd)
     if git_subcmd:
-        return eval_git_command(git_subcmd, git_dir, git_args, cmd)
+        effective_dir = _resolve_git_dir(git_dir, cwd)
+        return eval_git_command(git_subcmd, effective_dir, git_args, cmd)
     return eval_system_command(cmd)
 
 
@@ -406,7 +429,12 @@ def main() -> None:
     elif "command" in payload:
         command = payload.get("command", "")
 
-    decision, reason = evaluate_command(command)
+    hook_cwd = _extract_hook_cwd(payload)
+    try:
+        decision, reason = evaluate_command(command, cwd=hook_cwd)
+    except Exception as exc:
+        sys.stderr.write(f"SAFETY GUARD WARNING: Hook evaluation exception: {exc}\n")
+        decision, reason = "allow", f"Internal guard exception: {exc}"
 
     if decision == "force_ask" and shutil.which("afplay"):
         subprocess.Popen(
