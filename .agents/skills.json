@@ -1,7 +1,14 @@
 {
   "entries": [
     {
-      "path": "agents/skills"
+      "path": "agents/skills",
+      "exclude": [
+        "finding-google-skills",
+        "gcloud",
+        "google-cloud-recipe-auth",
+        "google-cloud-recipe-onboarding",
+        "retrieving-developer-knowledge"
+      ]
     }
   ]
 }

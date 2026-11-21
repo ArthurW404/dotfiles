@@ -232,6 +232,9 @@ fi
 if [[ -d "$DOTFILES_DIR/external/google-skills/skills" ]]; then
     mkdir -p "$DOTFILES_DIR/agents/skills"
     google_curated=(
+        "cloud/gcloud"
+        "cloud/google-cloud-recipe-onboarding"
+        "cloud/google-cloud-recipe-auth"
         "cloud/cloud-run-basics"
         "cloud/cloud-sql-basics"
         "cloud/cloud-build-basics"
@@ -245,6 +248,8 @@ if [[ -d "$DOTFILES_DIR/external/google-skills/skills" ]]; then
         "cloud/developing-genkit-python"
         "cloud/google-cloud-solution-build-deploy-agents"
         "cloud/google-cloud-solution-multi-agent-security"
+        "developers/retrieving-developer-knowledge"
+        "developers/finding-google-skills"
         "identity/sign-in-with-google-web"
     )
     for entry in "${google_curated[@]}"; do
