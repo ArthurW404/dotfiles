@@ -213,15 +213,18 @@ fi
 
 echo ""
 echo "=== Linking Universal Agent Hub (Antigravity & Claude) ==="
-# Ensure any external skills from submodules are symlinked into agents/skills/
+# Ensure curated external skills from submodules are symlinked into agents/skills/
 if [[ -d "$DOTFILES_DIR/external/anthropics-skills/skills" ]]; then
     mkdir -p "$DOTFILES_DIR/agents/skills"
-    for skill_dir in "$DOTFILES_DIR"/external/anthropics-skills/skills/*; do
-        if [[ -d "$skill_dir" ]]; then
-            skill_name="$(basename "$skill_dir")"
-            if [[ ! -e "$DOTFILES_DIR/agents/skills/$skill_name" && ! -L "$DOTFILES_DIR/agents/skills/$skill_name" ]]; then
-                link_item "../../external/anthropics-skills/skills/$skill_name" "$DOTFILES_DIR/agents/skills/$skill_name"
-            fi
+    anthropic_curated=(
+        "frontend-design"
+        "webapp-testing"
+        "mcp-builder"
+        "skill-creator"
+    )
+    for skill_name in "${anthropic_curated[@]}"; do
+        if [[ -d "$DOTFILES_DIR/external/anthropics-skills/skills/$skill_name" && ! -e "$DOTFILES_DIR/agents/skills/$skill_name" && ! -L "$DOTFILES_DIR/agents/skills/$skill_name" ]]; then
+            link_item "../../external/anthropics-skills/skills/$skill_name" "$DOTFILES_DIR/agents/skills/$skill_name"
         fi
     done
 fi
@@ -229,9 +232,6 @@ fi
 if [[ -d "$DOTFILES_DIR/external/google-skills/skills" ]]; then
     mkdir -p "$DOTFILES_DIR/agents/skills"
     google_curated=(
-        "cloud/gcloud"
-        "cloud/google-cloud-recipe-onboarding"
-        "cloud/google-cloud-recipe-auth"
         "cloud/cloud-run-basics"
         "cloud/cloud-sql-basics"
         "cloud/cloud-build-basics"
@@ -245,8 +245,6 @@ if [[ -d "$DOTFILES_DIR/external/google-skills/skills" ]]; then
         "cloud/developing-genkit-python"
         "cloud/google-cloud-solution-build-deploy-agents"
         "cloud/google-cloud-solution-multi-agent-security"
-        "developers/retrieving-developer-knowledge"
-        "developers/finding-google-skills"
         "identity/sign-in-with-google-web"
     )
     for entry in "${google_curated[@]}"; do

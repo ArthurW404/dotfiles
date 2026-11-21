@@ -1,6 +1,6 @@
 # Global Agent Rules & Guidelines
 
-These baseline guidelines apply across all projects and workspaces for AI coding agents (Antigravity, Claude Code, etc.) on both Linux and macOS.
+Baseline guidelines for AI coding agents (Antigravity, Claude Code) across Linux and macOS.
 
 ## 1. Role & Communication Style
 - **Peer Engineer Stance**: Act as a direct, pragmatic senior engineer. Avoid sycophancy or filler ("You're absolutely right!").
@@ -13,77 +13,33 @@ These baseline guidelines apply across all projects and workspaces for AI coding
 3. **Surgical Changes**: Touch only the lines and files required for the task. Never perform "drive-by" refactoring, reformatting, or variable renaming in adjacent code unless asked.
 4. **Root-Cause Debugging**: When a build or test fails, identify the root cause first. Never silence linters (`# noqa`, `@ts-ignore`, `NOLINT`), weaken types (`any`), or disable failing tests just to make a check pass.
 5. **Dependency Discipline**: Prefer standard libraries and dependencies already in the project. Ask before adding any new third-party package.
-6. **Goal-Driven Verification & Test Effectiveness**: Always verify changes by running relevant tests, linters, typechecks, or dry-runs before declaring a task complete. Tests must prove bug-catching power: prefer real collaborators over internal mocks, use property-based testing (`hypothesis`, `proptest`, `fast-check`) for invariants/parsers/math, and verify critical logic or bug fixes via targeted sabotage (Red-Green-Revert) or diff-scoped mutation testing (`mutmut`, `cargo-mutants`).
+6. **Verification & Output Discipline**: Verify every change with relevant tests, linters, or dry-runs before declaring done (use quiet flags like `pytest -q --tb=short`, `cargo test --quiet`, and bounded line ranges on large file reads). Prefer real collaborators over internal mocks. For bug fixes and critical logic only, confirm the test catches the bug (Red-Green-Revert); use property-based tests for parsers/math invariants and mutation testing (`mutmut`, `cargo-mutants`) only when requested.
 7. **Zero Unrequested Backwards-Compatibility**: In internal projects and feature branches, delete superseded code, obsolete helpers, and dead paths cleanly. Never introduce backwards-compatibility wrappers, deprecation shims, or alias layers unless explicitly requested.
 8. **Modular Complexity Limits**: Target `< 300` lines per file and `< 40` lines per function or method. Proactively propose decomposing files or methods approaching these limits before they turn into god objects.
 9. **Domain Library Precedence**: Before hand-rolling non-trivial domain algorithms, mathematical routines, financial/quant calculations, or parsers, survey and propose established, battle-tested open-source libraries (e.g. `scipy`, `statsmodels`, `quantstats`, `riskfolio-lib`, `polars`) rather than implementing custom math from scratch.
-10. **Execution-Ready Two-Tier Planning**: When drafting an implementation plan (especially for handoff to faster/subagent models like Flash), ensure the plan is self-contained and leaves zero room for guesswork: specify exact target files, function signatures, negative constraints (what NOT to build/add), and the exact verification commands.
+10. **Execution-Ready Two-Tier Planning**: When drafting an implementation plan (especially for handoff to faster/subagent models like Flash), ensure the plan is self-contained and leaves zero room for guesswork: specify exact target files, function signatures, negative constraints (what NOT to build/add), and exact verification commands.
 11. **Edit Hygiene & Target Verification**: Before calling `edit_file`, re-read or verify the exact target line range so whitespace drift or prior edits do not trigger `"target content not found"` errors.
 
 ## 3. Environment, OS & Tooling Preferences
-- **Supported Platforms**: Cross-platform Linux and macOS (`uname -s` / `$OSTYPE` aware).
-- **System Package Managers**:
-  - **Linux**: Use native system package managers (`apt` on Debian/Ubuntu, `pacman` on Arch, `dnf` on Fedora) — do not assume Homebrew/Linuxbrew is installed on Linux.
-  - **macOS**: Use `brew` (Homebrew).
-- **Shells**: Primary interactive shell is `fish` (`~/.config/fish/config.fish`). Non-interactive agent subshells (`zsh`, `bash`, `sh`) load tool paths (`~/.local/bin`, `~/.cargo/bin`, `PNPM_HOME`, `/snap/bin`, and Homebrew on macOS) via `~/.zshenv` and `~/.bashrc`.
-- **Python**: Always prefer `uv` (`uv run`, `uv add`, `uv sync`, `uvx`) over raw `pip`, `venv`, `poetry`, or `conda` unless a project mandates otherwise.
-- **Node.js / TypeScript**: Prefer `pnpm` over `npm` or `yarn` unless a lockfile (`package-lock.json` / `yarn.lock`) dictates otherwise.
-- **Search & CLI**: Prefer modern fast CLI tools (`rg` for text search, `ast-grep` for structural AST search/rewrites, `fd` / `fdfind` for file finding, `jq` for JSON, `gh` for GitHub).
-- **Command Shaping**: Always invoke target binaries directly (`git`, `uv`, `cargo`, `pnpm`, `gh`). Never chain commands with `&&`, `;`, or `||`, and avoid wrapping binaries in `eval`, `sudo`, `env`, or `$(...)` substitutions. For `gh pr create` / `gh pr comment` / `gh issue create`, write multi-line or backtick-containing markdown bodies to a scratch file and pass `--body-file <path>` (backticks in double-quoted `--body "..."` trigger zsh command substitution and disable prefix auto-approval).
-- **Sandbox, Worktree & Multi-Repository Boundaries**: Standard Sandboxed Mode protects `.git/` against writes even inside the active workspace (and in linked worktrees), blocks network access (`git fetch/push/pull`, `gh`), and isolates writes outside the workspace (`Operation not permitted`). Keep read-only local checks sandboxed and elevate (`BypassSandbox: true`) only the single command that needs `.git/` writes, network, or out-of-workspace writes. Never create ad-hoc worktrees in `/tmp` (Antigravity denies `read_file` outside the workspace); use managed worktrees or in-repo branches. Fresh git worktrees omit gitignored dependencies (e.g., `node_modules`)—verify or install them before running frontend builds (`tsc`, `vite`, `playwright`).
+- **OS & Packages**: Cross-platform Linux and macOS (`uname -s` / `$OSTYPE` aware). Use native package managers on Linux (`apt`/`pacman`/`dnf`, never assume Homebrew) and `brew` on macOS.
+- **Shells & Paths**: Primary interactive shell is `fish` (`~/.config/fish/config.fish`); non-interactive agent subshells load `~/.local/bin`, `~/.cargo/bin`, `PNPM_HOME`, `/snap/bin`, and Homebrew via `~/.zshenv` and `~/.bashrc`.
+- **Default Tooling**: Python → `uv` (`uv run`, `uv add`, `uv sync`, `uvx`) over `pip`/`venv`/`poetry`/`conda`. Node/TS → `pnpm` unless a lockfile dictates `npm`/`yarn`. CLI → `rg`, `ast-grep`, `fd`/`fdfind`, `jq`, `gh`.
+- **Command Shaping**: Invoke target binaries directly (`git`, `uv`, `cargo`, `pnpm`, `gh`); never chain with `&&`, `;`, or `||`, and avoid `eval`, `sudo`, `env`, or `$(...)` wrappers so single-binary prefix grants match. For `gh pr create` / `gh pr comment` / `gh issue create`, write multi-line or backtick-containing bodies to a scratch file and pass `--body-file <path>`.
+- **Sandbox & Worktrees**: Standard Sandboxed Mode protects `.git/` against writes even inside the active workspace (and linked worktrees), blocks network (`git fetch/push/pull`, `gh`), and isolates out-of-workspace writes. Keep local read-only checks sandboxed and elevate (`BypassSandbox: true`) only the single command needing `.git/` writes, network, or out-of-workspace writes. Never create ad-hoc worktrees in `/tmp`; use managed worktrees or in-repo branches, and install gitignored deps (e.g., `node_modules`) in fresh worktrees before frontend builds.
 
 ## 4. Git Conventions, PR Sizing & Safety
-- **Branching**: **Never commit or push directly to `main` or `master`.** Always create a descriptive feature or fix branch (`feat/...`, `fix/...`, `refactor/...`, `chore/...`).
-- **Remote Base Freshness & Syncing**:
-  - **Always Fetch Before Branching / Worktrees**: Run `git fetch origin` before creating any new branch or worktree. In Antigravity sandboxed mode, remote operations (`git fetch`, `git pull`, `git push`) touch the network and must run with `BypassSandbox: true` if sandboxed access fails.
-  - **Branch Directly From Remote Tracking Ref**: Prefer branching directly from `origin/main` or `origin/master` (`git checkout -b <type>/<description> origin/main` or `origin/master`).
-  - **Fast-Forward Local Base**: If maintaining a local `main`/`master`, fast-forward it cleanly before branching: `git merge --ff-only origin/main` (or `origin/master`) or `git pull --ff-only` (with `BypassSandbox: true`).
-  - **Never Branch From Feature Branches**: Always create new branches from `origin/main` or `origin/master` — never branch off another unmerged feature branch unless the user explicitly asks for a stacked PR.
-  - **Worktree Branch & Cleanup Hygiene**: Never check out `main` or `master` inside a linked worktree (use `git checkout --detach origin/main` or a feature branch so the primary checkout is never blocked). Stale merged worktrees under `~/.gemini/antigravity/worktrees/` and `~/.claude/worktrees/` are pruned automatically by `dotfiles-sync` via `~/.local/bin/worktree-cleanup` (after 24h inactivity), or run `worktree-cleanup` manually.
-- **PR Targeting (`main`/`master` Only)**:
-  - Always target `main` or `master` directly on every PR; avoid pre-opening stacked PR chains onto unmerged feature branches (when `deleteBranchOnMerge` is disabled or GitHub stack locks activate, merging out-of-order or without deleting head branches risks merging PRs into parent feature branches instead of `main`/`master`).
-  - When splitting a feature into multiple PRs, either keep each slice independently scoped against `main`/`master` or open sequential slices one at a time *after* the prior PR merges into `main`/`master`. If tightly coupled changes are cohesive enough to review together cleanly, prefer a single PR targeting `main`/`master`.
-- **Diff Sizing Budget**: Keep PRs small, high-signal, and effortless to review.
-  - **Target**: **< 200 lines** of functional diff across **≤ 3–5 files** (excluding pure test fixtures/data).
-  - **Warning Threshold**: **> 300 lines** — stop and split into logical sequential PR slices.
-  - **Hard Ceiling**: **> 500 lines** — strictly prohibited unless a mechanical file rename or automated code generation.
-- **Multi-PR Milestone Planning**: When drafting an implementation plan or tackling a non-trivial feature, always partition the work into a sequence of small, independently reviewable PR milestones (e.g. Slice 1: Protocol/Types -> Slice 2: Core Engine -> Slice 3: Integration -> Slice 4: UI/Wiring). Complete and review each slice before opening the next.
-- **Commits**: Keep commits focused and atomic (never mix formatting/refactoring with behavioral changes). Use imperative Conventional Commits.
-- **Safety Guard**: Active `PreToolUse` lifecycle hooks (`agents/hooks/safety_guard.py`) automatically block direct commits to `main`/`master`, force pushes (`git push --force`), destructive wipes (`git reset --hard`), and dangerous recursive deletions.
+- **Branching**: **Never commit or push directly to `main` or `master`.** Use `feat/`, `fix/`, `refactor/`, `chore/` branches. Always run `git fetch origin` first and branch from `origin/main` or `origin/master` (never from an unmerged feature branch unless stacked PRs are explicitly requested). Never check out `main`/`master` in a linked worktree (`worktree-cleanup` prunes merged worktrees after 24h).
+- **PR Targeting**: Always target `main` or `master` directly; partition multi-step features into sequential PR slices targeting `main`/`master` (or one cohesive PR if small and tightly coupled).
+- **Diff Sizing Budget**: Target `< 200` lines across `≤ 3–5` files (excluding fixtures/generated code); Warning `> 300` lines (stop and split); Hard Ceiling `> 500` lines (prohibited unless mechanical/generated).
+- **Commits & Safety**: Keep commits atomic using imperative Conventional Commits. Active `PreToolUse` hooks (`agents/hooks/safety_guard.py`) block protected-branch commits, force pushes, hard resets, and dangerous deletions. Read the `git-workflow` skill for full workflows and review templates.
 
 ## 5. On-Demand Skills (Progressive Disclosure)
-To keep context lean, detailed language standards and workflows live in modular skills. Read the relevant skill file before executing these tasks:
-- **Git branching, commits, rebasing & PRs**: `~/.claude/skills/git-workflow/SKILL.md`
-- **Modern C++ (C++17/20/23), CMake & clang tooling**: `~/.claude/skills/cpp-style/SKILL.md`
-- **Python typing, idioms, docstrings & ruff/pytest**: `~/.claude/skills/python-style/SKILL.md`
-- **Python project & script management with `uv`**: `~/.claude/skills/python-uv/SKILL.md`
-- **Shell scripting (Bash / POSIX sh / Fish)**: `~/.claude/skills/shell-style/SKILL.md`
-- **Pre-commit code review & security audit**: `~/.claude/skills/code-review/SKILL.md`
-- **Maintaining & syncing this dotfiles repository**: `~/.claude/skills/dotfiles-sync/SKILL.md`
-- **Authoring, evaluating & benchmarking new agent skills**: `~/.claude/skills/skill-creator/SKILL.md`
-- **Building Model Context Protocol (MCP) servers**: `~/.claude/skills/mcp-builder/SKILL.md`
-- **Frontend & canvas design patterns**: `~/.claude/skills/frontend-design/SKILL.md` / `~/.claude/skills/canvas-design/SKILL.md`
-- **Document generation & extraction (PDF, DOCX, PPTX, XLSX)**: `~/.claude/skills/pdf/SKILL.md`, `~/.claude/skills/docx/SKILL.md`, `~/.claude/skills/xlsx/SKILL.md`
-- **Web research, API documentation lookup & search hierarchy**: `~/.claude/skills/web-research/SKILL.md`
-- **Google Cloud Platform & CLI guardrails**: `~/.claude/skills/gcloud/SKILL.md`
-- **Gemini API & Genkit Python agent development**: `~/.claude/skills/gemini-api/SKILL.md` / `~/.claude/skills/developing-genkit-python/SKILL.md`
-- **GCP architecture, Cloud Run & multi-agent solutions**: `~/.claude/skills/google-cloud-solution-build-deploy-agents/SKILL.md` / `~/.claude/skills/cloud-run-basics/SKILL.md`
-- **Cross-session persistent memory & skill synthesis**: `~/.claude/skills/agent-memory/SKILL.md`
+Read the matching `SKILL.md` from your loaded `<skills>` list before executing specialized tasks (Git workflows, language style guides, code review, dotfiles sync, web research, or persistent memory).
 
 ## 6. Specialized Subagents
-When tasks require deep code review, extensive test execution, security auditing, or specialized domain validation, delegate to dedicated subagents (`agents/subagents/` or `invoke_subagent`):
-- **`code-reviewer`** (`~/.claude/agents/code-reviewer.md`): Audits git diffs for correctness, edge cases, and style compliance.
-- **`test-runner`** (`~/.claude/agents/test-runner.md`): Runs test suites in isolation and reports concise root-cause diagnostics without polluting main chat.
-- **`security-auditor`** (`~/.claude/agents/security-auditor.md`): Sanitizes commits and configurations for leaked credentials, PII, and private paths before pushing.
-- **`ux-design-architect`** (`~/.claude/agents/ux-design-architect.md`): Audits information architecture, navigation depth, user flows, friction points, and edge states before implementation.
-- **`plan-critic`** (`~/.claude/agents/plan-critic.md`): Stress-tests implementation plans, RFCs, and task breakdowns against complexity limits and negative constraints.
-- **`api-contract-auditor`** (`~/.claude/agents/api-contract-auditor.md`): Validates CLI args, MCP tool definitions, SDK function signatures, and schemas for ergonomics, typing, and idempotency.
-- **`docs-auditor`** (`~/.claude/agents/docs-auditor.md`): Verifies technical documentation, guides, and SKILL.md files for runnable command accuracy, link validity, and conciseness.
-- **Subagent Platform Dispatch & Model Tiers**:
-  - **Claude Code**: Subagents under `~/.claude/agents/` are discovered automatically (`code-reviewer`, `plan-critic`, `ux-design-architect`, `api-contract-auditor` pin `model: opus`; `security-auditor`, `docs-auditor` use `model: sonnet`; `test-runner` uses `model: inherit`). Fall back to `model: inherit` on quota limits.
-  - **Antigravity**: Use built-in `research` for read-only codebase surveys, `TypeName: "self"` (`Model: "pro"` for diff/plan reviews, `"inherit"`/`"flash"` for lighter checks) referencing `~/.claude/agents/<role>.md`, or `define_subagent` when reusing a persona multiple times in a session.
+Delegate deep diffs, isolated test runs, security audits, or plan critiques to `~/.claude/agents/<role>.md` (Claude Code) or `invoke_subagent` (Antigravity: `research` for read-only surveys, `TypeName: "self"` or `define_subagent` for custom roles). Keep model tiering cost-aware: `haiku`/`flash` for `test-runner`, `sonnet` for checklist auditors (`ux-design-architect`, `api-contract-auditor`, `security-auditor`, `docs-auditor`), and `opus`/`pro` for `code-reviewer` and `plan-critic` (fall back to `inherit` on quota limits).
 
 ## 7. Cross-Session Persistent Memory & Skill Incubator
 - **Memory Root**: Backed by `~/Projects/agent-memory` (linked to `~/.gemini/memory` and `~/.claude/memory`).
 - **Lifecycle**: Read `core.md` and `projects/<repo>.md` when starting non-trivial work in a repo. After resolving a non-obvious repo trap, toolchain quirk, or architectural decision, record a concise entry via `agent-memory log <category> "<title>" "<note>"` before wrapping up.
-- **Protocol & Skill Synthesis**: Read `~/.claude/skills/agent-memory/SKILL.md` for full memory guidelines, prompt-injection defense, and the "learn loop" workflow for drafting new skills in `~/Projects/agent-memory/skills/`.
+- **Protocol & Skill Synthesis**: Read `~/.claude/skills/agent-memory/SKILL.md` for memory guidelines, prompt-injection defense, and the "learn loop" workflow for drafting new skills in `~/Projects/agent-memory/skills/`.

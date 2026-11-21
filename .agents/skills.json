@@ -2,9 +2,6 @@
   "entries": [
     {
       "path": "agents/skills"
-    },
-    {
-      "path": "external/anthropics-skills/skills"
     }
   ]
 }
