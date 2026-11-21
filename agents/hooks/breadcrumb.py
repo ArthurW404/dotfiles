@@ -116,16 +116,34 @@ def append_entry(path: Path, entry: str, session_id: str, max_entries: int = MAX
     return target
 
 
+def _find_latest_breadcrumb(
+    state_dir: Path | None = None,
+    tmp_dir: Path = Path("/tmp/agent-breadcrumbs"),
+    agy_brain_dir: Path | None = None,
+) -> Path | None:
+    """Locate the newest breadcrumb file across Claude state, /tmp, and Antigravity brain dirs."""
+    candidates: list[Path] = []
+    for directory in (state_dir or _state_dir(), tmp_dir):
+        try:
+            if directory.is_dir():
+                candidates.extend(directory.glob("*.md"))
+        except OSError:
+            pass
+    brain = agy_brain_dir if agy_brain_dir is not None else (Path.home() / ".gemini" / "antigravity" / "brain")
+    try:
+        if brain.is_dir():
+            candidates.extend(brain.glob("*/scratch/breadcrumbs.md"))
+    except OSError:
+        pass
+    return max(candidates, key=lambda p: p.stat().st_mtime) if candidates else None
+
+
 def print_latest() -> int:
     """Print the most recently updated breadcrumb file across default dirs."""
-    candidates: list[Path] = []
-    for directory in (_state_dir(), Path("/tmp/agent-breadcrumbs")):
-        if directory.is_dir():
-            candidates.extend(directory.glob("*.md"))
-    if not candidates:
+    latest = _find_latest_breadcrumb()
+    if latest is None:
         print("No session breadcrumbs recorded yet.")
         return 0
-    latest = max(candidates, key=lambda p: p.stat().st_mtime)
     print(f"<!-- {latest} -->")
     print(latest.read_text(encoding="utf-8"), end="")
     return 0

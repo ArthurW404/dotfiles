@@ -60,7 +60,11 @@ def run_tests() -> None:
         ("git commit -m wip", "deny", "Commit on master"),
         ("git -C /some/repo commit -m wip", "deny", "Commit with -C flag on master"),
         ("git rebase origin/master", "deny", "Direct rebase on master"),
+        ("git rebase --abort", "allow", "Safe rebase abort on master"),
+        ("git rebase --quit", "allow", "Safe rebase quit on master"),
         ("git merge feat/x", "deny", "Direct merge on master"),
+        ("git merge --abort", "allow", "Safe merge abort on master"),
+        ("git merge --quit", "allow", "Safe merge quit on master"),
         ("git -C /some/repo rebase origin/master", "deny", "Rebase with -C on master"),
         ("git -C /some/repo merge feat/x", "deny", "Merge with -C on master"),
         ("git merge --ff-only", "allow", "Bare fast-forward merge on master"),
@@ -151,7 +155,10 @@ def run_tests() -> None:
         else:
             print(f"  [FAIL] {desc}: '{cmd}' -> got {decision}, expected {expected_decision} ({reason})")
 
-    # Integration test for real, unmocked is_memory_repo
+    # Integration test for real, unmocked is_memory_repo and hook cwd resolution
+    import json
+    import subprocess
+    import tempfile
     from pathlib import Path
     import safety_guard
     real_mem = str(Path.home() / "Projects" / "agent-memory")
@@ -171,6 +178,48 @@ def run_tests() -> None:
         print(f"  [PASS] Real is_memory_repo for {real_dot} -> False")
     else:
         print(f"  [FAIL] Real is_memory_repo for {real_dot} -> got True, expected False")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        main_repo = tmp_path / "repo_main"
+        feat_repo = tmp_path / "repo_feat"
+        subprocess.run(["git", "init", "-q", "-b", "main", str(main_repo)], check=True)
+        subprocess.run(["git", "init", "-q", "-b", "feat/work", str(feat_repo)], check=True)
+
+        cwd_checks = [
+            ("evaluate_command honors hook cwd on main", evaluate_command("git commit -m x", cwd=str(main_repo))[0], "deny"),
+            ("evaluate_command honors hook cwd on feature", evaluate_command("git commit -m x", cwd=str(feat_repo))[0], "allow"),
+            ("evaluate_command resolves relative -C against cwd", evaluate_command("git -C repo_main commit -m x", cwd=str(tmp_path))[0], "deny"),
+        ]
+        for desc, got, expected in cwd_checks:
+            total_tests += 1
+            if got == expected:
+                passed += 1
+                print(f"  [PASS] {desc} -> {got}")
+            else:
+                print(f"  [FAIL] {desc} -> got {got}, expected {expected}")
+
+        # End-to-end subprocess check with hook running from /tmp while payload cwd is main_repo
+        hook_script = Path(__file__).resolve().parent / "safety_guard.py"
+        payload = json.dumps({
+            "cwd": str(main_repo),
+            "toolCall": {"name": "run_command", "args": {"CommandLine": "git commit -m x"}},
+        })
+        proc = subprocess.run(
+            [sys.executable, str(hook_script)],
+            input=payload,
+            cwd="/tmp",
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        total_tests += 1
+        got_decision = json.loads(proc.stdout).get("decision")
+        if got_decision == "deny":
+            passed += 1
+            print("  [PASS] End-to-end hook subprocess honors payload cwd from /tmp -> deny")
+        else:
+            print(f"  [FAIL] End-to-end hook subprocess from /tmp -> got {got_decision}, expected deny")
 
     print(f"\nResults: {passed}/{total_tests} tests passed.")
     if passed != total_tests:

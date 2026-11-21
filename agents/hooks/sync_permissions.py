@@ -87,7 +87,34 @@ def sync_antigravity(config_path: Path, baseline: dict, dry_run: bool = False) -
     return changed
 
 
-def sync_claude(settings_path: Path, baseline: dict, dry_run: bool = False) -> bool:
+def _ensure_claude_hook(entries: list[dict], matcher: str, command: str) -> tuple[list[dict], bool]:
+    """Ensure a nested Claude Code hook entry exists, migrating any legacy flat entry."""
+    expected = {
+        "matcher": matcher,
+        "hooks": [{"type": "command", "command": command, "timeout": 5}],
+    }
+    updated: list[dict] = []
+    has_nested = False
+    changed = False
+    for entry in entries:
+        if entry.get("command") == command and "hooks" not in entry:
+            changed = True
+            continue
+        if any(sub.get("command") == command for sub in entry.get("hooks", [])):
+            has_nested = True
+        updated.append(entry)
+    if not has_nested:
+        updated.append(expected)
+        changed = True
+    return updated, changed
+
+
+def sync_claude(
+    settings_path: Path,
+    baseline: dict,
+    dry_run: bool = False,
+    hooks_dir: Path | None = None,
+) -> bool:
     settings = load_json(settings_path)
     changed = False
 
@@ -107,34 +134,26 @@ def sync_claude(settings_path: Path, baseline: dict, dry_run: bool = False) -> b
         perms["deny"] = new_deny
         changed = True
 
-    # Configure PreToolUse safety hook
+    # Configure PreToolUse safety hook & PostToolUse breadcrumb hook
     hooks = settings.setdefault("hooks", {})
-    pre_tool_use = hooks.setdefault("PreToolUse", [])
-    hooks_dir = Path.home() / "Projects" / "dotfiles" / "agents" / "hooks"
-    hook_script = str(hooks_dir / "safety_guard.py")
-    expected_hook = {
-        "matcher": "Bash",
-        "command": f"python3 {hook_script}",
-    }
-    if not any(h.get("command") == expected_hook["command"] for h in pre_tool_use):
-        pre_tool_use.append(expected_hook)
+    resolved_hooks_dir = hooks_dir or (Path.home() / "Projects" / "dotfiles" / "agents" / "hooks")
+
+    pre_updated, pre_changed = _ensure_claude_hook(
+        hooks.setdefault("PreToolUse", []),
+        "Bash",
+        f"python3 {resolved_hooks_dir / 'safety_guard.py'}",
+    )
+    if pre_changed:
+        hooks["PreToolUse"] = pre_updated
         changed = True
 
-    # Configure PostToolUse session-breadcrumb hook
-    post_tool_use = hooks.setdefault("PostToolUse", [])
-    breadcrumb_cmd = f"python3 {hooks_dir / 'breadcrumb.py'}"
-    has_breadcrumb = any(
-        h.get("command") == breadcrumb_cmd
-        or any(sub.get("command") == breadcrumb_cmd for sub in h.get("hooks", []))
-        for h in post_tool_use
+    post_updated, post_changed = _ensure_claude_hook(
+        hooks.setdefault("PostToolUse", []),
+        "Bash|Edit|Write|MultiEdit",
+        f"python3 {resolved_hooks_dir / 'breadcrumb.py'}",
     )
-    if not has_breadcrumb:
-        post_tool_use.append(
-            {
-                "matcher": "Bash|Edit|Write|MultiEdit",
-                "hooks": [{"type": "command", "command": breadcrumb_cmd, "timeout": 5}],
-            }
-        )
+    if post_changed:
+        hooks["PostToolUse"] = post_updated
         changed = True
 
     if changed:
@@ -150,6 +169,12 @@ def sync_claude(settings_path: Path, baseline: dict, dry_run: bool = False) -> b
 
 
 def main() -> None:
+    if "--test" in sys.argv:
+        from test_sync_permissions import run_tests
+
+        run_tests()
+        return
+
     dry_run = "--dry-run" in sys.argv
     repo_root = Path(__file__).resolve().parent.parent.parent
     baseline_path = repo_root / "agents" / "permissions.json"

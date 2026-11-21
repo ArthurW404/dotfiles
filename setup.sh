@@ -312,6 +312,7 @@ for entry in \
     "safety_guard.py:--test" \
     "breadcrumb.py:--test" \
     "skill_lint.py:--test" \
+    "sync_permissions.py:--test" \
     "test_notifier.py:"
 do
     hook_script="$DOTFILES_DIR/agents/hooks/${entry%%:*}"

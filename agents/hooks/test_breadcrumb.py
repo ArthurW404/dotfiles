@@ -90,6 +90,24 @@ class TestBreadcrumb(unittest.TestCase):
             p2 = breadcrumb._resolve_log_path({"session_id": "abc/123"})
             self.assertEqual(p2, Path(tmp) / "agent-breadcrumbs" / "abc_123.md")
 
+    def test_find_latest_breadcrumb_discovers_antigravity_brain(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            state_dir = root / "state"
+            tmp_dir = root / "tmp"
+            brain_dir = root / "brain"
+            bc_old = state_dir / "claude.md"
+            bc_new = brain_dir / "conv-abc" / "scratch" / "breadcrumbs.md"
+            bc_old.parent.mkdir(parents=True)
+            bc_new.parent.mkdir(parents=True)
+            bc_old.write_text("# Old\n", encoding="utf-8")
+            os.utime(bc_old, (1_700_000_000, 1_700_000_000))
+            bc_new.write_text("# New\n", encoding="utf-8")
+            os.utime(bc_new, (1_700_000_500, 1_700_000_500))
+
+            found = breadcrumb._find_latest_breadcrumb(state_dir=state_dir, tmp_dir=tmp_dir, agy_brain_dir=brain_dir)
+            self.assertEqual(found, bc_new)
+
 
 def run_tests() -> None:
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestBreadcrumb)
