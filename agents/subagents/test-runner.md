@@ -6,7 +6,7 @@ tools:
   - Read
   - Grep
   - Glob
-model: inherit
+model: haiku
 ---
 
 # Test Runner Subagent
@@ -36,7 +36,7 @@ Run local test suites, linters, and type checkers. Absorb verbose compiler warni
 
 3. **Verify Test Effectiveness (Isolated Mutation & PBT Protocol)**:
    - **No In-Place Sabotage**: Never mutate production files in-place via `Bash` (risks dirtying the working tree on timeout or interruption). In-place Red-Green-Revert belongs in the authoring workflow; `test-runner` relies on isolated mutation runners that operate on scratch copies.
-   - **Diff-Scoped Mutation Testing** (when requested or auditing core logic):
+   - **Diff-Scoped Mutation Testing** (only when explicitly requested):
      - Python: `uv run --with mutmut mutmut run "<module>*"`
      - Rust: `cargo mutants --file <path/to/file.rs>` (or `--in-diff <diff-file>`)
      - Node / TS: `pnpm stryker run --mutate <path/to/file.ts>`

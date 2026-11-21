@@ -38,7 +38,7 @@ Use this checklist to perform rigorous self-review and peer code review before f
 - [ ] **Automated Tests**: Are there tests covering both the happy path and critical failure/boundary cases (`0`, `-1`, empty collections, `None`, `NaN`)?
 - [ ] **Assertion Strength (No Tautologies)**: Do tests assert concrete output values, state transitions, or exact exception messages rather than weak `is not None` checks or merely asserting that a mock was called?
 - [ ] **Behavior Over Implementation (Minimal Mocking)**: Do tests exercise public contracts using real lightweight collaborators (e.g. `:memory:` SQLite, `tmp_path`, fake transports) instead of mocking internal private helpers?
-- [ ] **Sabotage / Mutation Verification**: For bug fixes and critical branch logic, was the test verified to fail when the production fix or boundary condition is reverted/mutated (Red-Green-Revert, `mutmut`, `cargo-mutants`, or `Stryker`)?
+- [ ] **Bug-Fix Sabotage Check**: For bug fixes and critical branch logic, was the test verified to fail when the fix or boundary condition is reverted (Red-Green-Revert)? Run automated mutation testing (`mutmut`, `cargo-mutants`, `Stryker`) only when explicitly requested.
 - [ ] **Property-Based Invariants (PBT)**: For parsers, serializers, mathematical/quant routines, and state machines, are behavioral invariants (round-trip, idempotency, reference-oracle equivalence, conservation laws) tested with property-based generators (`hypothesis`, `proptest`, `fast-check`)?
 - [ ] **Linters & Formatters**: Did relevant linters pass (`ruff`, `clang-tidy`, `shellcheck`) with zero warnings?
 - [ ] **Clean Git Status**: Run `git status -sb` and `git diff --staged` to confirm only intended files are committed.

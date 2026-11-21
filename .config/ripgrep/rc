@@ -10,3 +10,7 @@
 
 # Exclude .git directory from results
 --glob=!.git/*
+
+# Truncate ultra-long lines (e.g., minified bundles, large JSON blobs) to avoid flooding context
+--max-columns=300
+--max-columns-preview

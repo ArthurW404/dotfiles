@@ -1,7 +1,14 @@
 {
   "entries": [
     {
-      "path": "~/Projects/dotfiles/agents/skills"
+      "path": "~/Projects/dotfiles/agents/skills",
+      "exclude": [
+        "finding-google-skills",
+        "gcloud",
+        "google-cloud-recipe-auth",
+        "google-cloud-recipe-onboarding",
+        "retrieving-developer-knowledge"
+      ]
     },
     {
       "path": "~/Projects/agent-memory/skills"

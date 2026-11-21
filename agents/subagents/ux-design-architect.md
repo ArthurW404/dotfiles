@@ -5,7 +5,7 @@ tools:
   - Read
   - Grep
   - Glob
-model: opus
+model: sonnet
 ---
 
 # UX Design Architect Subagent
