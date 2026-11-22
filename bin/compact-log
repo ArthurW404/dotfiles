@@ -171,11 +171,10 @@ def compact_text(
 
     cleaned = [clean_line(ln, max_line_len) for ln in raw_lines]
     collapsed = collapse_consecutive(cleaned)
-    has_signals = any(is_signal_line(line) for line, _ in collapsed)
+    sig_count = sum(cnt for line, cnt in collapsed if is_signal_line(line))
 
-    sig_count = 0
-    if errors_only or (max_lines > 0 and len(collapsed) > max_lines and has_signals):
-        selected, sig_count = extract_signal_blocks(collapsed, max(0, context))
+    if errors_only or (max_lines > 0 and len(collapsed) > max_lines and sig_count > 0):
+        selected, _ = extract_signal_blocks(collapsed, max(0, context))
         if errors_only and not selected:
             return f"[compact-log: {raw_count} lines | 0 error/warn matches]"
     else:

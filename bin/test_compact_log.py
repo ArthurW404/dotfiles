@@ -118,6 +118,12 @@ class TestCompactLog(unittest.TestCase):
             self.assertEqual(res_missing.returncode, 2)
             self.assertIn("compact-log:", res_missing.stderr)
 
+    def test_short_log_consecutive_error_dedup_reports_signal_count(self) -> None:
+        lines = [f"INFO step {i}" for i in range(20)] + ["ERROR: connection refused"] * 10
+        out = compact_log.compact_text("\n".join(lines), max_lines=80)
+        self.assertIn("ERROR: connection refused (×10)", out)
+        self.assertIn("10 signal matches", out)
+
 
 def run_tests() -> None:
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(TestCompactLog)
