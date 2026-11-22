@@ -47,5 +47,14 @@
         ]
       }
     ]
+  },
+  "context-guard": {
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "python3 ~/Projects/dotfiles/agents/hooks/context_guard.py",
+        "timeout": 5
+      }
+    ]
   }
 }

@@ -314,6 +314,7 @@ echo "=== Running Agent Hook Verification ==="
 for entry in \
     "safety_guard.py:--test" \
     "breadcrumb.py:--test" \
+    "context_guard.py:--test" \
     "skill_lint.py:--test" \
     "sync_permissions.py:--test" \
     "test_notifier.py:"
