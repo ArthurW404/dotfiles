@@ -127,10 +127,10 @@ When an implementation plan is drafted for execution by faster or subagent model
 - **Exact File Paths & Interfaces**: State exact file paths, class/function names, and typed parameter signatures.
 - **Explicit Negative Constraints**: State clearly what NOT to build, files NOT to create (e.g. "Do NOT create new JSON cache files", "Do NOT commit sqlite files").
 - **Target Libraries**: Explicitly name standard domain libraries to use instead of hand-rolling custom math.
-- **Single Verification Command**: State the exact command to test and lint (`uv run pytest tests/test_foo.py && uv run ruff check`).
+- **Explicit Verification Commands**: State the exact standalone test and lint commands (e.g., `uv run pytest -q --tb=short tests/test_foo.py` and `uv run ruff check`, invoked separately without `&&` so prefix approvals match).
 
 ## 7. Structured PR Review Artifact (`pr<N>_review.md`)
-Before requesting user review or merging a PR, generate a structured markdown artifact (`pr<N>_review.md`) following this schema:
+For complex/multi-PR cycles or when explicitly requested, generate a structured markdown artifact (`pr<N>_review.md`) following this schema (skip for routine small PRs where the PR description already covers it):
 
 ```markdown
 # PR #<N> Review: `<branch-name>` → `main`
@@ -160,7 +160,7 @@ Before requesting user review or merging a PR, generate a structured markdown ar
 ```
 
 ## 8. Session Handoff Digest (`handoff.md`)
-When transferring work between sessions, agents, or models, produce a standardized `handoff.md` artifact:
+When explicitly handing off unfinished work between sessions, agents, or models, produce a standardized `handoff.md` artifact:
 
 ```markdown
 # Session Handoff: `<branch-name>`
