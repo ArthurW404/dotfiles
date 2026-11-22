@@ -1,0 +1,219 @@
+#!/usr/bin/env python3
+"""Strictly read-only log & output compactor to keep agent context lean.
+
+Strips ANSI escape sequences and carriage-return progress churn, normalizes
+volatile tokens (timestamps, UUIDs, PIDs, hex, floats) to deduplicate repeated
+lines/errors with `(×N)`, preserves multi-line tracebacks with context, and caps
+output lines. Reads a file path or stdin without spawning subprocesses or writing.
+"""
+
+from __future__ import annotations
+
+import argparse
+import re
+import sys
+from pathlib import Path
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;?]*[ -/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)")
+_NORMALIZE_RULES: tuple[tuple[re.Pattern[str], str], ...] = (
+    (re.compile(r"\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+-]\d{2}:?\d{2})?"), "<TS>"),
+    (re.compile(r"\b\d{2}:\d{2}:\d{2}(?:[.,]\d+)?\b"), "<TIME>"),
+    (re.compile(r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b"), "<UUID>"),
+    (re.compile(r"\b0x[0-9a-fA-F]+\b|\b[0-9a-f]{12,}\b"), "<HEX>"),
+    (re.compile(r"(?i)\b(?:pid|tid|req|id)[=:]\s*\d+\b|\[\d+\]"), "<ID>"),
+    (re.compile(r"\b\d+\.\d+(?:ms|us|ns|s|m)?\b"), "<NUM>"),
+)
+_SIGNAL_RE = re.compile(
+    r"(?i)\b(?:error|err|fatal|critical|panic|panicked|fail|failed|failure|exception|"
+    r"traceback|warn|warning|segfault|oom)\b|(?-i:\b[A-Z][A-Za-z0-9]*(?:Error|Exception)\b)|"
+    r"error\[E\d+\]|exit (?:code|status) [1-9]"
+)
+_CONT_RE = re.compile(r"^\s*(?:File |at |in |\^|~|-->|\||Caused by:|During handling|\.\.\.)")
+
+
+def clean_line(raw: str, max_line_len: int) -> str:
+    """Strip ANSI codes, collapse CR overwrites, and cap single-line length."""
+    cleaned = _ANSI_RE.sub("", raw)
+    if "\r" in cleaned:
+        parts = [seg for seg in cleaned.split("\r") if seg]
+        cleaned = parts[-1] if parts else ""
+    cleaned = cleaned.rstrip()
+    if max_line_len > 0 and len(cleaned) > max_line_len:
+        extra = len(cleaned) - max_line_len
+        return f"{cleaned[:max_line_len]} ... [+{extra} chars]"
+    return cleaned
+
+
+def normalize_signature(line: str) -> str:
+    """Replace timestamps, UUIDs, hashes, IDs, and floats for deduplication."""
+    sig = line.strip()
+    for pattern, repl in _NORMALIZE_RULES:
+        sig = pattern.sub(repl, sig)
+    return sig
+
+
+def is_signal_line(line: str) -> bool:
+    """Return True when line indicates an error, warning, failure, or traceback."""
+    return bool(_SIGNAL_RE.search(line))
+
+
+def is_continuation_line(line: str) -> bool:
+    """Return True for stack-frame or traceback continuation markers."""
+    return bool(_CONT_RE.match(line))
+
+
+def collapse_consecutive(lines: list[str]) -> list[tuple[str, int]]:
+    """Collapse adjacent lines sharing the same normalized signature."""
+    collapsed: list[tuple[str, int]] = []
+    prev_sig: str | None = None
+    for line in lines:
+        sig = normalize_signature(line)
+        if collapsed and sig == prev_sig:
+            first, count = collapsed[-1]
+            collapsed[-1] = (first, count + 1)
+        else:
+            collapsed.append((line, 1))
+            prev_sig = sig
+    return collapsed
+
+
+def _scan_signal_blocks(
+    items: list[tuple[str, int]],
+) -> tuple[list[tuple[int, int]], dict[int, int], set[int], int]:
+    """Identify multi-line blocks and fold duplicate standalone signal lines."""
+    blocks: list[tuple[int, int]] = []
+    counts: dict[int, int] = {}
+    suppressed: set[int] = set()
+    seen_single: dict[str, int] = {}
+    sig_total = 0
+
+    i, n = 0, len(items)
+    while i < n:
+        line, cnt = items[i]
+        if not is_signal_line(line):
+            i += 1
+            continue
+        sig_total += cnt
+        j = i + 1
+        while j < n and (items[j][0].startswith((" ", "\t")) or is_continuation_line(items[j][0])):
+            j += 1
+        if j > i + 1 and j < n and is_signal_line(items[j][0]):
+            j += 1
+        if j - i == 1:
+            sig = normalize_signature(line)
+            if sig in seen_single:
+                counts[seen_single[sig]] += cnt
+                suppressed.add(i)
+                i = j
+                continue
+            seen_single[sig] = i
+        counts[i] = cnt
+        blocks.append((i, j))
+        i = j
+    return blocks, counts, suppressed, sig_total
+
+
+def extract_signal_blocks(items: list[tuple[str, int]], context: int) -> tuple[list[tuple[str, int]], int]:
+    """Extract signal blocks with context, folding repeated standalone errors."""
+    blocks, counts, suppressed, sig_total = _scan_signal_blocks(items)
+    if not blocks:
+        return [], 0
+
+    n = len(items)
+    spans: list[list[int]] = []
+    for start, end in blocks:
+        lo, hi = max(0, start - context), min(n, end + context)
+        if spans and lo <= spans[-1][1]:
+            spans[-1][1] = max(spans[-1][1], hi)
+        else:
+            spans.append([lo, hi])
+
+    selected: list[tuple[str, int]] = []
+    for span_idx, (lo, hi) in enumerate(spans):
+        if span_idx > 0:
+            selected.append(("---", 1))
+        for idx in range(lo, hi):
+            if idx in suppressed:
+                continue
+            line, orig_cnt = items[idx]
+            selected.append((line, counts.get(idx, orig_cnt)))
+    return selected, sig_total
+
+
+def _cap_items(items: list[tuple[str, int]], max_lines: int) -> list[tuple[str, int]]:
+    if max_lines <= 0 or len(items) <= max_lines:
+        return items
+    if max_lines < 3:
+        return items[:max_lines]
+    head_n = max(1, max_lines // 4)
+    tail_n = max(1, max_lines - head_n - 1)
+    omitted = len(items) - head_n - tail_n
+    return items[:head_n] + [(f"... [omitted {omitted} lines] ...", 1)] + items[-tail_n:]
+
+
+def _format_items(items: list[tuple[str, int]]) -> list[str]:
+    return [f"{line} (×{cnt})" if cnt > 1 else line for line, cnt in items]
+
+
+def compact_text(
+    text: str,
+    max_lines: int = 80,
+    max_line_len: int = 240,
+    context: int = 2,
+    errors_only: bool = False,
+) -> str:
+    """Compact raw log/command output into a bounded high-signal digest."""
+    if not text:
+        return "[compact-log: 0 lines]"
+    normalized = text.replace("\r\n", "\n")
+    raw_lines = (normalized[:-1] if normalized.endswith("\n") else normalized).split("\n")
+    raw_count = len(raw_lines)
+
+    cleaned = [clean_line(ln, max_line_len) for ln in raw_lines]
+    collapsed = collapse_consecutive(cleaned)
+    has_signals = any(is_signal_line(line) for line, _ in collapsed)
+
+    sig_count = 0
+    if errors_only or (max_lines > 0 and len(collapsed) > max_lines and has_signals):
+        selected, sig_count = extract_signal_blocks(collapsed, max(0, context))
+        if errors_only and not selected:
+            return f"[compact-log: {raw_count} lines | 0 error/warn matches]"
+    else:
+        selected = collapsed
+
+    capped = _cap_items(selected, max_lines)
+    rendered = _format_items(capped)
+    out_count = len(rendered)
+    if out_count < raw_count or errors_only:
+        pct = int(round((1 - (out_count / raw_count)) * 100)) if raw_count else 0
+        header = f"[compact-log: {raw_count} -> {out_count} lines ({pct}% reduced) | {sig_count} signal matches]"
+        return "\n".join([header, *rendered])
+    return "\n".join(rendered)
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Filter and compact verbose logs for lean agent context.")
+    parser.add_argument("path", nargs="?", default=None, help="Log file to inspect (reads stdin when omitted or '-')")
+    parser.add_argument("--max-lines", type=int, default=80, help="Maximum output body lines (default: 80)")
+    parser.add_argument("--max-line-len", type=int, default=240, help="Max characters per line (default: 240)")
+    parser.add_argument("--context", type=int, default=2, help="Context lines around errors/warnings (default: 2)")
+    parser.add_argument("--errors-only", action="store_true", help="Always emit only error/warning blocks")
+    return parser
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    try:
+        if args.path is None or args.path == "-":
+            raw = sys.stdin.read()
+        else:
+            raw = Path(args.path).expanduser().read_text(encoding="utf-8", errors="replace")
+    except OSError as exc:
+        print(f"compact-log: {exc}", file=sys.stderr)
+        return 2
+    print(compact_text(raw, args.max_lines, args.max_line_len, args.context, args.errors_only))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

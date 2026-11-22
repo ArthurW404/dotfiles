@@ -190,6 +190,7 @@ link_item "$DOTFILES_DIR/.gitconfig"               "$HOME/.gitconfig"
 link_item "$DOTFILES_DIR/.config/git/ignore"       "$HOME/.config/git/ignore"
 link_item "$DOTFILES_DIR/bin/dotfiles-sync"        "$HOME/.local/bin/dotfiles-sync"
 link_item "$DOTFILES_DIR/bin/worktree-cleanup"     "$HOME/.local/bin/worktree-cleanup"
+link_item "$DOTFILES_DIR/bin/compact-log"          "$HOME/.local/bin/compact-log"
 
 # On Debian/Ubuntu, apt installs `fd-find` as `fdfind` and `bat` as `batcat`.
 # Link them into ~/.local/bin so non-interactive agent subshells can invoke `fd` and `bat` directly.
@@ -334,6 +335,13 @@ if [[ -f "$DOTFILES_DIR/bin/test_worktree_cleanup.py" ]]; then
         echo "[dry-run] Would run: python3 $DOTFILES_DIR/bin/test_worktree_cleanup.py"
     else
         python3 "$DOTFILES_DIR/bin/test_worktree_cleanup.py"
+    fi
+fi
+if [[ -f "$DOTFILES_DIR/bin/test_compact_log.py" ]]; then
+    if [[ "$DRY_RUN" == true ]]; then
+        echo "[dry-run] Would run: python3 $DOTFILES_DIR/bin/test_compact_log.py"
+    else
+        python3 "$DOTFILES_DIR/bin/test_compact_log.py"
     fi
 fi
 
