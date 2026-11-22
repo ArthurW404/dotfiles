@@ -15,11 +15,12 @@ Check local resources before hitting the network:
 - **Language Docs & Installed Source**: `pydoc <module>`, `go doc <package>`, `rustup doc`, Neovim `:help <topic>`, virtualenv packages (`uv pip show -f <pkg>`), or `node_modules` type definitions (`.d.ts`).
 
 ## 2. Tool Selection
-- **`search_web`**: Targeted queries, exact quoted error messages, `site:` filters, and explicit tool version numbers.
-- **`invoke_subagent`**: Use `research` for broad exploratory surveys (isolates bulky readouts from the main context) or `browser` for interactive / JS-rendered pages.
-- **Raw / Markdown Docs**: Prefer raw URLs (`raw.githubusercontent.com/...`) or `.md` doc mirrors over heavy HTML pages.
+- **`search_web`** (Claude Code: `WebSearch`): Targeted queries, exact quoted error messages, `site:` filters, and explicit tool version numbers.
+- **`invoke_subagent`** (Claude Code: `Agent` / `Task`): Use `research` for broad exploratory surveys (isolates bulky readouts from the main context) or `browser` for interactive / JS-rendered pages.
+- **Raw / Markdown Docs** (Claude Code: `WebFetch`): Prefer raw URLs (`raw.githubusercontent.com/...`) or `.md` doc mirrors over heavy HTML pages.
 
 ## 3. Authoritative Domains & Version Parity
+- **Bugs & Regressions**: Check upstream GitHub issues, PRs, release notes, and changelogs first.
 - **Python**: `docs.python.org`, `peps.python.org`, `pypi.org`, `docs.astral.sh`
 - **Rust / Go**: `doc.rust-lang.org`, `docs.rs`, `go.dev`, `pkg.go.dev`
 - **Web / Node / Systems**: `developer.mozilla.org`, `typescriptlang.org`, `nodejs.org`, `cppreference.com`, `man7.org`, `wiki.archlinux.org`
