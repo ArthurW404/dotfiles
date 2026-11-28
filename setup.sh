@@ -175,6 +175,7 @@ link_item "$DOTFILES_DIR/.config/nvim"             "$HOME/.config/nvim"
 link_item "$DOTFILES_DIR/.config/tmux/tmux.conf"   "$HOME/.config/tmux/tmux.conf"
 link_item "$DOTFILES_DIR/.config/ripgrep/rc"       "$HOME/.config/ripgrep/rc"
 link_item "$DOTFILES_DIR/.config/starship.toml"    "$HOME/.config/starship.toml"
+link_item "$DOTFILES_DIR/.config/ruff/ruff.toml"   "$HOME/.config/ruff/ruff.toml"
 
 # Preserve local git identity in untracked $DOTFILES_DIR/.gitconfig.local if an unlinked ~/.gitconfig exists
 if [[ -f "$HOME/.gitconfig" && ! -L "$HOME/.gitconfig" && ! -f "$DOTFILES_DIR/.gitconfig.local" ]]; then

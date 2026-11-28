@@ -1,0 +1,43 @@
+# Global user-level fallback configuration for Ruff (~/.config/ruff/ruff.toml).
+# Applies automatically on Linux and macOS when a project has no local
+# pyproject.toml / ruff.toml / .ruff.toml. Project-level configs override this.
+
+target-version = "py310"
+line-length = 100
+
+[lint]
+select = [
+    "E",    # pycodestyle errors
+    "F",    # Pyflakes
+    "I",    # isort
+    "UP",   # pyupgrade (modern 3.10+ idioms)
+    "B",    # flake8-bugbear
+    "SIM",  # flake8-simplify (reduces redundant branching/nesting)
+    "RET",  # flake8-return (clean early-return structure)
+    "C901", # McCabe cyclomatic complexity
+    "PLR",  # Pylint refactor & structural complexity (branches/returns/args/statements)
+    "ANN",  # flake8-annotations (enforce type annotations)
+]
+ignore = [
+    "E501",    # line length handled by `ruff format`
+    "ANN401",  # allow explicit typing.Any when genuinely needed
+    "PLR2004", # avoid noisy magic-value warnings (e.g. HTTP status codes, lengths)
+]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pylint]
+max-returns = 6
+max-branches = 10
+max-args = 6
+max-statements = 40
+
+[lint.per-file-ignores]
+"tests/**" = ["ANN", "PLR0913"]
+"**/test_*.py" = ["ANN", "PLR0913"]
+"test_*.py" = ["ANN", "PLR0913"]
+"**/*_test.py" = ["ANN", "PLR0913"]
+"*_test.py" = ["ANN", "PLR0913"]
+"**/conftest.py" = ["ANN", "PLR0913"]
+"conftest.py" = ["ANN", "PLR0913"]

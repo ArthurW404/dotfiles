@@ -73,7 +73,49 @@ def fetch_user_record(user_id: str, timeout_seconds: float = 5.0) -> UserRecord:
     """
 ```
 
-## 5. Tooling & Verification Workflow
+## 5. Complexity & Standard `pyproject.toml` Baseline
+Enforce cyclomatic/structural complexity and strict typing automatically so functions stay small and shallow (`~/.config/ruff/ruff.toml` acts as a user-level fallback when a project has no local config):
+
+- **Complexity Rules (Ruff)**: `C901` (`max-complexity = 10`), `PLR` (`max-branches = 10`, `max-returns = 6`, `max-args = 6`, `max-statements = 40`), plus `SIM` and `RET` to simplify nesting and redundant branches.
+- **Reducing Complexity**: When `C901` or `PLR` triggers, extract focused private helpers, invert conditions into guard clauses / early returns, or replace branch chains with dispatch mappings (`dict` / `match`). Never silence warnings with `# noqa: C901`.
+- **Cognitive Complexity (Optional Audit)**: For deeply nested loops or conditionals that flat McCabe counts understate, run:
+  ```sh
+  uvx complexipy . --max-complexity-allowed 15
+  ```
+- **Standard `pyproject.toml` Template**: Use `"strict"` mode in `basedpyright` for new applications (or `"standard"` when incrementally tightening existing codebases). Use `uv run mypy --strict .` instead when an app depends on mypy plugins (e.g., SQLAlchemy, Django).
+
+```toml
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RET", "C901", "PLR", "ANN"]
+ignore = ["E501", "ANN401", "PLR2004"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.ruff.lint.pylint]
+max-returns = 6
+max-branches = 10
+max-args = 6
+max-statements = 40
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["ANN", "PLR0913"]
+"**/test_*.py" = ["ANN", "PLR0913"]
+"test_*.py" = ["ANN", "PLR0913"]
+"**/*_test.py" = ["ANN", "PLR0913"]
+"*_test.py" = ["ANN", "PLR0913"]
+"**/conftest.py" = ["ANN", "PLR0913"]
+"conftest.py" = ["ANN", "PLR0913"]
+
+[tool.basedpyright]
+typeCheckingMode = "strict" # or "standard" for existing codebases
+```
+
+## 6. Tooling & Verification Workflow
 Always verify Python code using `uv` and `ruff`:
 
 1. **Lint and Auto-Fix**:
@@ -86,7 +128,7 @@ Always verify Python code using `uv` and `ruff`:
    ```
 3. **Type Check**:
    ```sh
-   uv run mypy . # or pyright / ty
+   uv run basedpyright  # or uvx basedpyright; use `uv run mypy --strict .` for plugin-heavy stacks (SQLAlchemy/Django), or `uvx ty check` for fast checks
    ```
 4. **Run Tests**:
    ```sh

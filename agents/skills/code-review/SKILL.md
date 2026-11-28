@@ -32,7 +32,7 @@ Use this checklist to perform rigorous self-review and peer code review before f
 - [ ] **No Dead Code**: Are unused imports, temporary print/debug statements, and commented-out code blocks deleted?
 - [ ] **Zero Fake Backwards-Compatibility**: Are there deprecated aliases, compatibility shims, or dead legacy paths that should be cleanly pruned instead?
 - [ ] **Interface Segregation**: Does any class implement dummy methods, `pass`, or `NotImplementedError` just to satisfy an oversized protocol? If so, split the protocol.
-- [ ] **Complexity Limits**: Are files under ~300 lines and methods under ~40 lines? Decompose monolithic functions into focused private helpers.
+- [ ] **Complexity Limits**: Are files under ~300 lines and methods under ~40 lines? Do functions pass Ruff complexity limits (`C901 <= 10`, `PLR` branches/statements)? Decompose monolithic functions into focused private helpers.
 
 ## 5. Verification & Test Effectiveness
 - [ ] **Automated Tests**: Are there tests covering both the happy path and critical failure/boundary cases (`0`, `-1`, empty collections, `None`, `NaN`)?
@@ -40,7 +40,7 @@ Use this checklist to perform rigorous self-review and peer code review before f
 - [ ] **Behavior Over Implementation (Minimal Mocking)**: Do tests exercise public contracts using real lightweight collaborators (e.g. `:memory:` SQLite, `tmp_path`, fake transports) instead of mocking internal private helpers?
 - [ ] **Bug-Fix Sabotage Check**: For bug fixes and critical branch logic, was the test verified to fail when the fix or boundary condition is reverted (Red-Green-Revert)? Run automated mutation testing (`mutmut`, `cargo-mutants`, `Stryker`) only when explicitly requested.
 - [ ] **Property-Based Invariants (PBT)**: For parsers, serializers, mathematical/quant routines, and state machines, are behavioral invariants (round-trip, idempotency, reference-oracle equivalence, conservation laws) tested with property-based generators (`hypothesis`, `proptest`, `fast-check`)?
-- [ ] **Linters & Formatters**: Did relevant linters pass (`ruff`, `clang-tidy`, `shellcheck`) with zero warnings?
+- [ ] **Linters & Formatters**: Did relevant linters and strict type checkers pass (`ruff`, `basedpyright` / `mypy --strict`, `clang-tidy`, `shellcheck`) with zero warnings?
 - [ ] **Clean Git Status**: Run `git status -sb` and `git diff --staged` to confirm only intended files are committed.
 
 ## 6. PR Sizing & Diff Budget Audit

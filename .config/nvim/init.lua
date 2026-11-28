@@ -214,7 +214,7 @@ if uv.fs_stat(lazypath) then
                     local mlsp_ok, mlsp = pcall(require, "mason-lspconfig")
                     if mlsp_ok then
                         mlsp.setup({
-                            ensure_installed = { "clangd", "pyright", "ruff", "lua_ls" },
+                            ensure_installed = { "clangd", "basedpyright", "ruff", "lua_ls" },
                         })
                     end
 
@@ -236,7 +236,18 @@ if uv.fs_stat(lazypath) then
                     -- Default server configurations (Neovim 0.11+ vim.lsp.config/enable with 0.9/0.10 lspconfig fallback)
                     local servers = {
                         clangd = {},
-                        pyright = {},
+                        basedpyright = {
+                            settings = {
+                                basedpyright = {
+                                    disableOrganizeImports = true,
+                                    analysis = {
+                                        typeCheckingMode = "standard",
+                                        autoSearchPaths = true,
+                                        useLibraryCodeForTypes = true,
+                                    },
+                                },
+                            },
+                        },
                         ruff = {},
                         lua_ls = {
                             settings = {
