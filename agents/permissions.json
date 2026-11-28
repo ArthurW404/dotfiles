@@ -6,6 +6,7 @@
     "command(basename)",
     "command(cat)",
     "command(cmp)",
+    "command(compact-log)",
     "command(date)",
     "command(df)",
     "command(diff)",
