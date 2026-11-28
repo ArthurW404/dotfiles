@@ -90,7 +90,7 @@ Always verify Python code using `uv` and `ruff`:
    ```
 4. **Run Tests**:
    ```sh
-   uv run pytest -v
+   uv run pytest -q --tb=short
    ```
 5. **Property-Based & Invariant Testing (`hypothesis`)**:
    - Prefer `hypothesis` (`@given(...)`) over hardcoded example tables for parsers, serializers, mathematical/financial routines, and state machines:
@@ -100,8 +100,8 @@ Always verify Python code using `uv` and `ruff`:
      - **Structural / Conservation Invariants**: e.g. portfolio weights sum to `1.0`, sort preserves multiset elements, bounds hold across `st.floats(allow_nan=False, allow_infinity=False)`.
    - Exercise real lightweight collaborators (`tmp_path`, in-memory `sqlite3`) rather than patching internal functions with `unittest.mock`. Never write tests whose sole assertion is `mock_fn.assert_called_once_with(...)`.
 6. **Test Effectiveness & Mutation Verification**:
-   - **Sabotage Check (Red-Green-Revert)**: For bug fixes and boundary conditions (`<` vs `<=`), verify the test fails when the production fix is stashed or mutated before marking complete.
-   - **Mutation Testing (`mutmut`)**: Audit assertion coverage on critical modules inside the project `.venv`:
+   - **Sabotage Check (Red-Green-Revert)**: For bug fixes and critical boundary conditions (`<` vs `<=`) only, verify the test fails when the fix is temporarily reverted.
+   - **Mutation Testing (`mutmut`)**: Run only when explicitly requested for auditing assertion coverage on critical modules:
      ```sh
      uv run --with mutmut mutmut run "<module>*"
      ```
