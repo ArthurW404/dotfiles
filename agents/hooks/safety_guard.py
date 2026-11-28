@@ -10,12 +10,16 @@ from __future__ import annotations
 
 import json
 import re
+import shlex
 import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 PUSH_VALUE_FLAGS = {"-o", "--push-option", "--repo", "--receive-pack", "--exec"}
+COMMIT_MSG_VALUE_FLAGS = {"-m", "--message", "-F", "--file", "-C", "--reuse-message", "-c", "--reedit-message"}
+DB_BINARY_RE = re.compile(r"\.(?:sqlite3?|db|duckdb)(?:-(?:wal|shm))?$", re.IGNORECASE)
+DECISION_RANK = {"allow": 0, "ask": 1, "force_ask": 2, "deny": 3}
 
 ALLOWED_FF_TARGETS = {
     "origin/main",
@@ -90,9 +94,17 @@ def is_memory_repo(cwd: str | None = None) -> bool:
     return False
 
 
+def _tokenize(cmd: str) -> list[str]:
+    """Split a single command segment respecting shell quotes."""
+    try:
+        return shlex.split(cmd)
+    except ValueError:
+        return cmd.strip().split()
+
+
 def parse_git_command(cmd: str) -> tuple[str | None, str | None, list[str]]:
     """Parse git subcommand, target working directory, and arguments."""
-    tokens = cmd.strip().split()
+    tokens = _tokenize(cmd)
     if not tokens or tokens[0] != "git":
         return None, None, []
 
@@ -281,12 +293,70 @@ def check_branch_creation_freshness(
     return "allow", "Branch creation passed safety checks"
 
 
+def _has_db_binary_path(args: list[str]) -> bool:
+    """Return True if any non-message argument targets a database binary file."""
+    rest = iter(args)
+    for token in rest:
+        if token in COMMIT_MSG_VALUE_FLAGS:
+            next(rest, None)
+            continue
+        if token.startswith(("--message=", "--file=", "--reuse-message=", "--reedit-message=")):
+            continue
+        if token.startswith("-"):
+            continue
+        if DB_BINARY_RE.search(token):
+            return True
+    return False
+
+
+def _check_worktree_add(args: list[str]) -> tuple[str, str] | None:
+    """Block ad-hoc /tmp worktrees and checking out main/master in a linked worktree."""
+    if not args or args[0] != "add":
+        return None
+    creating_branch = False
+    detached = False
+    positionals: list[str] = []
+    rest = iter(args[1:])
+    for arg in rest:
+        if arg in ("-b", "-B", "--orphan"):
+            creating_branch = True
+            next(rest, None)
+        elif arg == "--reason":
+            next(rest, None)
+        elif arg in ("-d", "--detach"):
+            detached = True
+        elif not arg.startswith("-"):
+            positionals.append(arg)
+    if not positionals:
+        return None
+    wt_path = positionals[0]
+    if wt_path in ("/tmp", "/private/tmp") or wt_path.startswith(("/tmp/", "/private/tmp/")):
+        return (
+            "deny",
+            "Ad-hoc git worktrees in /tmp are prohibited (Antigravity denies read_file outside workspace). "
+            "Use managed worktrees or in-repo branches.",
+        )
+    commit_ish = positionals[1] if len(positionals) > 1 else None
+    if commit_ish in ("main", "master") and not creating_branch and not detached:
+        return (
+            "deny",
+            f"Checking out '{commit_ish}' in a linked worktree is prohibited. "
+            f"Detach at 'origin/{commit_ish}' or create a feature branch with '-b'.",
+        )
+    return None
+
+
 def eval_git_command(
     git_subcmd: str, git_dir: str | None, git_args: list[str], cmd: str
 ) -> tuple[str, str]:
     """Evaluate git operations against safety rules."""
-    if git_subcmd in ("add", "commit") and re.search(r"(\.sqlite|\.sqlite3|\.db|\.duckdb)\b", cmd):
+    if git_subcmd in ("add", "commit") and _has_db_binary_path(git_args):
         return "deny", "Staging or committing database binaries (*.db, *.sqlite*, *.duckdb) is prohibited."
+
+    if git_subcmd == "worktree":
+        wt_result = _check_worktree_add(git_args)
+        if wt_result is not None:
+            return wt_result
 
     if git_subcmd in ("checkout", "switch", "branch", "worktree"):
         fresh_decision, fresh_reason = check_branch_creation_freshness(git_subcmd, git_args, git_dir)
@@ -348,7 +418,14 @@ def eval_git_command(
 def eval_system_command(cmd: str) -> tuple[str, str]:
     """Evaluate non-git system commands against destructive patterns."""
     if re.search(r"\brm\s+-[a-zA-Z]*[rR]", cmd):
-        critical_targets = [r"/\s*$", r"/\*", r"~\s*$", r"~(/|\*)", r"\$HOME\b", r"\.\.\s*$", r"\.\./"]
+        critical_targets = [
+            r"(?:^|\s)/+(?:\s|$)",
+            r"(?:^|\s)/+\*",
+            r"(?:^|\s)~(?:\s|$)",
+            r"(?:^|\s)~(/|\*)",
+            r"\$HOME\b",
+            r"(?:^|\s)\.\.(?:\s|$|/)",
+        ]
         for pattern in critical_targets:
             if re.search(pattern, cmd):
                 return "deny", f"Dangerous recursive rm targeting critical path ({pattern}). Blocked by safety guard."
@@ -389,17 +466,90 @@ def _extract_hook_cwd(payload: dict) -> str | None:
     return None
 
 
+def split_command_segments(cmd: str) -> list[str]:
+    """Split a shell command on unquoted &&, ||, ;, or newline delimiters."""
+    segments: list[str] = []
+    buf: list[str] = []
+    quote: str | None = None
+    escaped = False
+    i, n = 0, len(cmd)
+    while i < n:
+        ch = cmd[i]
+        if escaped:
+            buf.append(ch)
+            escaped = False
+        elif ch == "\\" and quote != "'":
+            buf.append(ch)
+            escaped = True
+        elif quote is None and ch in ("'", '"'):
+            quote = ch
+            buf.append(ch)
+        elif quote == ch:
+            quote = None
+            buf.append(ch)
+        elif quote is None and ch in (";", "\n"):
+            if seg := "".join(buf).strip():
+                segments.append(seg)
+            buf = []
+        elif quote is None and ch in ("&", "|") and i + 1 < n and cmd[i + 1] == ch:
+            if seg := "".join(buf).strip():
+                segments.append(seg)
+            buf = []
+            i += 1
+        else:
+            buf.append(ch)
+        i += 1
+    if tail := "".join(buf).strip():
+        segments.append(tail)
+    return segments
+
+
+def _apply_cd_segment(segment: str, cwd: str | None) -> tuple[bool, str | None]:
+    """Track working directory changes across compound `cd <dir> && ...` commands."""
+    tokens = _tokenize(segment)
+    if not tokens or tokens[0] != "cd":
+        return False, cwd
+    if "-" in tokens[1:]:
+        return True, cwd
+    targets = [tok for tok in tokens[1:] if not tok.startswith("-")]
+    if not targets:
+        return True, str(Path.home())
+    return True, _resolve_git_dir(targets[0], cwd)
+
+
+def _evaluate_segment(segment: str, cwd: str | None) -> tuple[str, str]:
+    cleaned = segment.strip()
+    if cleaned.startswith("(") and cleaned.endswith(")"):
+        cleaned = cleaned[1:-1].strip()
+    git_subcmd, git_dir, git_args = parse_git_command(cleaned)
+    if git_subcmd:
+        effective_dir = _resolve_git_dir(git_dir, cwd)
+        return eval_git_command(git_subcmd, effective_dir, git_args, cleaned)
+    return eval_system_command(cleaned)
+
+
 def evaluate_command(command: str, cwd: str | None = None) -> tuple[str, str]:
-    """Evaluate command and return (decision, reason)."""
+    """Evaluate single or compound commands and return strictest (decision, reason)."""
     cmd = command.strip()
     if not cmd:
         return "allow", "Empty command"
 
-    git_subcmd, git_dir, git_args = parse_git_command(cmd)
-    if git_subcmd:
-        effective_dir = _resolve_git_dir(git_dir, cwd)
-        return eval_git_command(git_subcmd, effective_dir, git_args, cmd)
-    return eval_system_command(cmd)
+    segments = split_command_segments(cmd)
+    if not segments:
+        return "allow", "Empty command"
+
+    current_cwd = cwd
+    worst: tuple[str, str] = ("allow", "Command passed safety checks")
+    for seg in segments:
+        is_cd, current_cwd = _apply_cd_segment(seg, current_cwd)
+        if is_cd:
+            continue
+        decision, reason = _evaluate_segment(seg, current_cwd)
+        if DECISION_RANK.get(decision, 0) >= DECISION_RANK.get(worst[0], 0):
+            worst = (decision, reason)
+            if decision == "deny":
+                return worst
+    return worst
 
 
 def main() -> None:
