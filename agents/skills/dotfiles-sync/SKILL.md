@@ -17,7 +17,7 @@ description: >-
 - `.zshenv`, `.zshrc`, & `.bashrc`: Cross-platform non-interactive `PATH` setup and interactive shell configs.
 - `.gitconfig` & `.config/git/ignore`: Shared Git config (includes untracked `~/.gitconfig.local` for local identity) and global ignore file.
 - `.config/nvim/init.lua` & `.vimrc`: Modern Lua Neovim configuration and classic Vim configuration.
-- `.config/tmux/tmux.conf` & `.config/ripgrep/rc`: Ergonomic `tmux` and `ripgrep` configurations.
+- `.config/tmux/tmux.conf`, `.config/ripgrep/rc`, & `.config/ruff/ruff.toml`: Ergonomic `tmux`, `ripgrep`, and global fallback Ruff configurations.
 - `linux/`: Linux/X11 desktop configurations (`.Xresources`, `.fehbg`, `i3`, `i3blocks`), auto-linked when `setup.sh` runs on Linux.
 
 ## Adding or Updating Configurations
